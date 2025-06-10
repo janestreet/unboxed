@@ -678,7 +678,7 @@ module Array : sig
   val copy : 'a t @ local -> 'a t
 end
 
-module (Bigarray @ nonportable) : sig
+module (Bigarray @@ nonportable) : sig
   open Stdlib.Bigarray
 
   module Array1 : sig

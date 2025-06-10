@@ -94,31 +94,32 @@ val invariant : float# -> unit
     Unfortunately, these must be functions (for now), because module-level [float64]
     constants are not yet supported. *)
 
-val nan : unit -> t [@@zero_alloc]
-val infinity : unit -> t [@@zero_alloc]
-val neg_infinity : unit -> t [@@zero_alloc]
+val nan : unit -> t [@@zero_alloc strict]
+val infinity : unit -> t [@@zero_alloc strict]
+val neg_infinity : unit -> t [@@zero_alloc strict]
 
 (** Equal to [infinity]. *)
-val max_value : unit -> t [@@zero_alloc]
+val max_value : unit -> t [@@zero_alloc strict]
 
 (** Equal to [neg_infinity]. *)
-val min_value : unit -> t [@@zero_alloc]
+val min_value : unit -> t [@@zero_alloc strict]
 
-val zero : unit -> t [@@zero_alloc]
-val one : unit -> t [@@zero_alloc]
-val minus_one : unit -> t [@@zero_alloc]
+val zero : unit -> t [@@zero_alloc strict]
+val one : unit -> t [@@zero_alloc strict]
+val minus_one : unit -> t [@@zero_alloc strict]
 
 (** The constant pi. *)
-val pi : unit -> t [@@zero_alloc]
+val pi : unit -> t [@@zero_alloc strict]
 
 (** The constant sqrt(pi). *)
-val sqrt_pi : unit -> t [@@zero_alloc]
+val sqrt_pi : unit -> t [@@zero_alloc strict]
 
 (** The constant sqrt(2 * pi). *)
-val sqrt_2pi : unit -> t [@@zero_alloc]
+val sqrt_2pi : unit -> t [@@zero_alloc strict]
 
 (** Euler-Mascheroni constant (γ). *)
-val euler_gamma_constant : unit -> t [@@zero_alloc]
+val euler_gamma_constant : unit -> t
+[@@zero_alloc strict]
 
 (** The difference between 1.0 and the smallest exactly representable floating-point
     number greater than 1.0. That is:
@@ -130,14 +131,15 @@ val euler_gamma_constant : unit -> t [@@zero_alloc]
 
     See also: {{:http://en.wikipedia.org/wiki/Machine_epsilon} Machine epsilon}. *)
 val epsilon_float : unit -> t
+[@@zero_alloc strict]
 
-val max_finite_value : unit -> t
+val max_finite_value : unit -> t [@@zero_alloc strict]
 
 (** - [min_positive_subnormal_value = 2 ** -1074]
     - [min_positive_normal_value    = 2 ** -1022] *)
 
-val min_positive_subnormal_value : unit -> t
-val min_positive_normal_value : unit -> t
+val min_positive_subnormal_value : unit -> t [@@zero_alloc strict]
+val min_positive_normal_value : unit -> t [@@zero_alloc strict]
 
 (** {2 Rounding and integer conversion} *)
 
@@ -358,10 +360,10 @@ val scale : t -> t -> t [@@zero_alloc]
 module O : sig
   external unbox : (float[@local_opt]) -> float# = "%unbox_float"
   external box : float# -> (float[@local_opt]) = "%box_float"
-  val ( + ) : t -> t -> t [@@zero_alloc]
-  val ( - ) : t -> t -> t [@@zero_alloc]
-  val ( * ) : t -> t -> t [@@zero_alloc]
-  val ( / ) : t -> t -> t [@@zero_alloc]
+  val ( + ) : t -> t -> t [@@zero_alloc strict]
+  val ( - ) : t -> t -> t [@@zero_alloc strict]
+  val ( * ) : t -> t -> t [@@zero_alloc strict]
+  val ( / ) : t -> t -> t [@@zero_alloc strict]
 
   (** In analogy to Int.( % ), ( % ):
       - always produces non-negative (or NaN) result
@@ -373,23 +375,23 @@ module O : sig
       when -Infinity < a < 0, (+/- Infinity % a) = NaN, (a % 0) = NaN. *)
   val ( % ) : t -> t -> t
 
-  val ( ** ) : t -> t -> t [@@zero_alloc]
-  val ( ~- ) : t -> t [@@zero_alloc]
+  val ( ** ) : t -> t -> t [@@zero_alloc strict]
+  val ( ~- ) : t -> t [@@zero_alloc strict]
 
   (* Comparisons.Infix *)
-  val ( >= ) : t -> t -> bool [@@zero_alloc]
-  val ( <= ) : t -> t -> bool [@@zero_alloc]
-  val ( = ) : t -> t -> bool [@@zero_alloc]
-  val ( > ) : t -> t -> bool [@@zero_alloc]
-  val ( < ) : t -> t -> bool [@@zero_alloc]
-  val ( <> ) : t -> t -> bool [@@zero_alloc]
-  val abs : t -> t [@@zero_alloc]
-  val neg : t -> t [@@zero_alloc]
+  val ( >= ) : t -> t -> bool [@@zero_alloc strict]
+  val ( <= ) : t -> t -> bool [@@zero_alloc strict]
+  val ( = ) : t -> t -> bool [@@zero_alloc strict]
+  val ( > ) : t -> t -> bool [@@zero_alloc strict]
+  val ( < ) : t -> t -> bool [@@zero_alloc strict]
+  val ( <> ) : t -> t -> bool [@@zero_alloc strict]
+  val abs : t -> t [@@zero_alloc strict]
+  val neg : t -> t [@@zero_alloc strict]
 
   (** Note that this doesn't round trip in either direction. For example,
       [Float.to_int (Float.of_int max_int) <> max_int]. *)
   val of_int : int -> t
-  [@@zero_alloc]
+  [@@zero_alloc strict]
 end
 
 include module type of O (** @inline *)

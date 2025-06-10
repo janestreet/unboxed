@@ -1,7 +1,7 @@
 open! Core
 open Import
 
-type t : float64 [@@deriving quickcheck]
+type t : float64 mod everything [@@deriving quickcheck]
 
 val globalize : local_ t -> t
 
@@ -78,7 +78,7 @@ val scale : t -> Float_u.t -> t [@@zero_alloc]
 
 module Option : sig
   type value := t
-  type t : float64
+  type t : float64 mod everything
 
   val globalize : local_ t -> t
   val box : t -> Percent.Option.t

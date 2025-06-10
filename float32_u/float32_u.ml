@@ -25,13 +25,16 @@ let[@inline] t_of_sexp sexp : t = of_float32 ((F.t_of_sexp [@inlined hint]) sexp
 
 include Bin_prot_unboxed_numbers.Float32_u
 
-let%template[@mode m = (global, local)] [@inline] [@zero_alloc] equal t1 t2 : bool =
+[%%template
+[@@@mode.default m = (global, local)]
+
+let[@inline] [@zero_alloc] equal t1 t2 : bool =
   (F.equal [@mode m]) (to_float32 t1) (to_float32 t2)
 ;;
 
-let%template[@mode m = (global, local)] [@inline] [@zero_alloc] compare t1 t2 : int =
+let[@inline] [@zero_alloc] compare t1 t2 : int =
   (F.compare [@mode m]) (to_float32 t1) (to_float32 t2)
-;;
+;;]
 
 let[@inline] ascending t1 t2 : int =
   (F.ascending [@inlined hint]) (to_float32 t1) (to_float32 t2)

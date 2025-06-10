@@ -1196,8 +1196,15 @@ module Bigstring = struct
 
   type t = (char, int8_unsigned_elt, c_layout) Array1.t
 
-  external get : t -> pos:int -> float32 @@ portable = "%caml_bigstring_getf32"
-  external unsafe_get : t -> pos:int -> float32 @@ portable = "%caml_bigstring_getf32u"
+  external get : t @ shared -> pos:int -> float32 @@ portable = "%caml_bigstring_getf32"
+
+  external unsafe_get
+    :  t @ shared
+    -> pos:int
+    -> float32
+    @@ portable
+    = "%caml_bigstring_getf32u"
+
   external set : t -> pos:int -> float32 -> unit @@ portable = "%caml_bigstring_setf32"
 
   external unsafe_set

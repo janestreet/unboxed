@@ -69,26 +69,30 @@ let[@inline] clamp_exn t ~min ~max : t =
 
 let[@inline] pp ppf t : unit = (F.pp [@inlined hint]) ppf (to_float t)
 let[@inline] invariant t : unit = (F.invariant [@inlined hint]) (to_float t)
-let[@inline] [@zero_alloc] nan () : t = of_float F.nan
-let[@inline] [@zero_alloc] infinity () : t = of_float F.infinity
-let[@inline] [@zero_alloc] neg_infinity () : t = of_float F.neg_infinity
-let[@inline] [@zero_alloc] max_value () : t = of_float F.max_value
-let[@inline] [@zero_alloc] min_value () : t = of_float F.min_value
-let[@inline] [@zero_alloc] zero () : t = of_float F.zero
-let[@inline] [@zero_alloc] one () : t = of_float F.one
-let[@inline] [@zero_alloc] minus_one () : t = of_float F.minus_one
-let[@inline] [@zero_alloc] pi () : t = of_float F.pi
-let[@inline] [@zero_alloc] sqrt_pi () : t = of_float F.sqrt_pi
-let[@inline] [@zero_alloc] sqrt_2pi () : t = of_float F.sqrt_2pi
-let[@inline] [@zero_alloc] euler_gamma_constant () : t = of_float F.euler_gamma_constant
-let[@inline] [@zero_alloc] epsilon_float () : t = of_float F.epsilon_float
-let[@inline] [@zero_alloc] max_finite_value () : t = of_float F.max_finite_value
+let[@inline] [@zero_alloc strict] nan () : t = of_float F.nan
+let[@inline] [@zero_alloc strict] infinity () : t = of_float F.infinity
+let[@inline] [@zero_alloc strict] neg_infinity () : t = of_float F.neg_infinity
+let[@inline] [@zero_alloc strict] max_value () : t = of_float F.max_value
+let[@inline] [@zero_alloc strict] min_value () : t = of_float F.min_value
+let[@inline] [@zero_alloc strict] zero () : t = of_float F.zero
+let[@inline] [@zero_alloc strict] one () : t = of_float F.one
+let[@inline] [@zero_alloc strict] minus_one () : t = of_float F.minus_one
+let[@inline] [@zero_alloc strict] pi () : t = of_float F.pi
+let[@inline] [@zero_alloc strict] sqrt_pi () : t = of_float F.sqrt_pi
+let[@inline] [@zero_alloc strict] sqrt_2pi () : t = of_float F.sqrt_2pi
 
-let[@inline] [@zero_alloc] min_positive_subnormal_value () : t =
+let[@inline] [@zero_alloc strict] euler_gamma_constant () : t =
+  of_float F.euler_gamma_constant
+;;
+
+let[@inline] [@zero_alloc strict] epsilon_float () : t = of_float F.epsilon_float
+let[@inline] [@zero_alloc strict] max_finite_value () : t = of_float F.max_finite_value
+
+let[@inline] [@zero_alloc strict] min_positive_subnormal_value () : t =
   of_float F.min_positive_subnormal_value
 ;;
 
-let[@inline] [@zero_alloc] min_positive_normal_value () : t =
+let[@inline] [@zero_alloc strict] min_positive_normal_value () : t =
   of_float F.min_positive_normal_value
 ;;
 
@@ -209,38 +213,60 @@ module O = struct
   external unbox : (float[@local_opt]) -> float# @@ portable = "%unbox_float"
   external box : float# -> (float[@local_opt]) @@ portable = "%box_float"
 
-  let[@inline] [@zero_alloc] ( + ) t1 t2 : t =
+  let[@inline] [@zero_alloc strict] ( + ) t1 t2 : t =
     of_float (F.O.( + ) (to_float t1) (to_float t2))
   ;;
 
-  let[@inline] [@zero_alloc] ( - ) t1 t2 : t =
+  let[@inline] [@zero_alloc strict] ( - ) t1 t2 : t =
     of_float (F.O.( - ) (to_float t1) (to_float t2))
   ;;
 
-  let[@inline] [@zero_alloc] ( * ) t1 t2 : t =
+  let[@inline] [@zero_alloc strict] ( * ) t1 t2 : t =
     of_float (F.O.( * ) (to_float t1) (to_float t2))
   ;;
 
-  let[@inline] [@zero_alloc] ( / ) t1 t2 : t =
+  let[@inline] [@zero_alloc strict] ( / ) t1 t2 : t =
     of_float (F.O.( / ) (to_float t1) (to_float t2))
   ;;
 
   let[@inline] ( % ) t1 t2 : t = of_float (F.O.( % ) (to_float t1) (to_float t2))
 
-  let[@inline] [@zero_alloc] ( ** ) t1 t2 : t =
+  let[@inline] [@zero_alloc strict] ( ** ) t1 t2 : t =
     of_float (F.O.( ** ) (to_float t1) (to_float t2))
   ;;
 
-  let[@inline] [@zero_alloc] ( ~- ) t : t = of_float (F.O.( ~- ) (to_float t))
-  let[@inline] [@zero_alloc] ( >= ) t1 t2 : bool = F.O.( >= ) (to_float t1) (to_float t2)
-  let[@inline] [@zero_alloc] ( <= ) t1 t2 : bool = F.O.( <= ) (to_float t1) (to_float t2)
-  let[@inline] [@zero_alloc] ( = ) t1 t2 : bool = F.O.( = ) (to_float t1) (to_float t2)
-  let[@inline] [@zero_alloc] ( > ) t1 t2 : bool = F.O.( > ) (to_float t1) (to_float t2)
-  let[@inline] [@zero_alloc] ( < ) t1 t2 : bool = F.O.( < ) (to_float t1) (to_float t2)
-  let[@inline] [@zero_alloc] ( <> ) t1 t2 : bool = F.O.( <> ) (to_float t1) (to_float t2)
-  let[@inline] [@zero_alloc] abs t : t = of_float (F.O.abs (to_float t))
-  let[@inline] [@zero_alloc] neg t : t = of_float (F.O.neg (to_float t))
-  let[@inline] [@zero_alloc] of_int i : t = of_float ((F.O.of_int [@inlined hint]) i)
+  let[@inline] [@zero_alloc strict] ( ~- ) t : t = of_float (F.O.( ~- ) (to_float t))
+
+  let[@inline] [@zero_alloc strict] ( >= ) t1 t2 : bool =
+    F.O.( >= ) (to_float t1) (to_float t2)
+  ;;
+
+  let[@inline] [@zero_alloc strict] ( <= ) t1 t2 : bool =
+    F.O.( <= ) (to_float t1) (to_float t2)
+  ;;
+
+  let[@inline] [@zero_alloc strict] ( = ) t1 t2 : bool =
+    F.O.( = ) (to_float t1) (to_float t2)
+  ;;
+
+  let[@inline] [@zero_alloc strict] ( > ) t1 t2 : bool =
+    F.O.( > ) (to_float t1) (to_float t2)
+  ;;
+
+  let[@inline] [@zero_alloc strict] ( < ) t1 t2 : bool =
+    F.O.( < ) (to_float t1) (to_float t2)
+  ;;
+
+  let[@inline] [@zero_alloc strict] ( <> ) t1 t2 : bool =
+    F.O.( <> ) (to_float t1) (to_float t2)
+  ;;
+
+  let[@inline] [@zero_alloc strict] abs t : t = of_float (F.O.abs (to_float t))
+  let[@inline] [@zero_alloc strict] neg t : t = of_float (F.O.neg (to_float t))
+
+  let[@inline] [@zero_alloc strict] of_int i : t =
+    of_float ((F.O.of_int [@inlined hint]) i)
+  ;;
 end
 
 include O

@@ -27,7 +27,7 @@ module Stable = struct
       v
     ;;
 
-    let[@zero_alloc] unchecked_value (x : t @@ m) = x
+    let[@zero_alloc] unchecked_value (x : t @ m) = x
     let to_option (t @ m) = if is_none t then None else Some t [@exclave_if_local m]
 
     let[@zero_alloc] of_option = function
@@ -71,7 +71,7 @@ open Optional_syntax
 [@@@alloc a @ m = (heap_global, stack_local)]
 
 let[@zero_alloc] value (t @ m) ~default =
-  (match%optional (t : _ @@ m) with
+  (match%optional (t : _ @ m) with
    | None -> default
    | Some t -> t)
   [@exclave_if_stack a]
@@ -79,7 +79,7 @@ let[@zero_alloc] value (t @ m) ~default =
 ;;
 
 let[@zero_alloc] value_exn (t @ m) =
-  (match%optional (t : _ @@ m) with
+  (match%optional (t : _ @ m) with
    | None -> raise_s [%message "None"]
    | Some t -> t)
   [@exclave_if_stack a]

@@ -645,11 +645,11 @@ module Bigstring : sig
   (** [get b ~pos] loads a float32 from [b] at an offset of [pos] bytes.
 
       @raise Invalid_argument if [pos] is outside the range 0 to [length b - 4]. *)
-  external get : t -> pos:int -> float32 = "%caml_bigstring_getf32"
+  external get : t @ shared -> pos:int -> float32 = "%caml_bigstring_getf32"
 
   (** [unsafe_get b ~pos] loads a float32 from [b] at an offset of [pos] bytes. Does not
       check that [pos] is a valid offset. *)
-  external unsafe_get : t -> pos:int -> float32 = "%caml_bigstring_getf32u"
+  external unsafe_get : t @ shared -> pos:int -> float32 = "%caml_bigstring_getf32u"
 
   (** [set b ~pos f] stores a float32 to [b] at an offset of [pos] bytes.
 

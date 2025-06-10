@@ -213,7 +213,7 @@ end
     choice and more we haven't implemented everything. Feel free to add!) *)
 module Unboxed : sig
   type boxed := t
-  type t = private float# [@@deriving quickcheck]
+  type t : float64 mod everything = private float# [@@deriving quickcheck]
 
   val globalize : local_ t -> t
   val to_string : t -> string

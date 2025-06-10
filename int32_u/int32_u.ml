@@ -375,7 +375,7 @@ module Hex_unsigned = struct
       of_int64_u_exn i32
     ;;
 
-    let[@inline] t_of_sexp (sexp : Sexp.t @@ local) =
+    let[@inline] t_of_sexp (sexp : Sexp.t @ local) =
       match sexp with
       | Atom s -> of_string s
       | List _ ->

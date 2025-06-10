@@ -555,7 +555,7 @@ end
     with the representation of [None]. *)
 module Option : sig
   type value = t
-  type t : bits64
+  type t : bits64 mod everything
 
   val none : unit -> t [@@zero_alloc]
   val some : value -> t [@@zero_alloc]

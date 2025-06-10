@@ -516,7 +516,7 @@ module Hex_unsigned = struct
       | (_ : Nothing.t) -> .
     ;;
 
-    let[@inline never] of_string (s : string @@ local) ~max_digits =
+    let[@inline never] of_string (s : string @ local) ~max_digits =
       let open O in
       let open Ref.O in
       let get = String.unsafe_get in
@@ -558,7 +558,7 @@ module Hex_unsigned = struct
         [%message "expected Atom, got List" ~_:([%globalize: Sexp.t] sexp : Sexp.t)]
     ;;
 
-    let[@inline] t_of_sexp (sexp : Sexp.t @@ local) ~max_digits =
+    let[@inline] t_of_sexp (sexp : Sexp.t @ local) ~max_digits =
       match sexp with
       | Atom s -> of_string s ~max_digits
       | List _ ->
