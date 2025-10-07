@@ -6,7 +6,7 @@
 open! Base
 
 type t = float32
-[@@deriving_inline bin_io ~localize, globalize, sexp ~localize, quickcheck]
+[@@deriving_inline bin_io ~localize, globalize, sexp ~stackify, quickcheck]
 
 include sig
   [@@@ocaml.warning "-32"]
@@ -15,7 +15,7 @@ include sig
 
   val globalize : local_ t -> t
 
-  include Sexplib0.Sexpable.S_any__local with type t := t
+  include Sexplib0.Sexpable.S_any__stack with type t := t
   include Ppx_quickcheck_runtime.Quickcheckable.S with type t := t
 end
 [@@ocaml.doc "@inline"]
@@ -36,7 +36,7 @@ val of_string_opt : local_ string -> t option
 module Util : sig
     type float32 = t
     [@@deriving
-      bin_io ~localize, compare ~localize, equal ~localize, hash, sexp_of ~localize]
+      bin_io ~localize, compare ~localize, equal ~localize, hash, sexp_of ~stackify]
   end
   with type float32 := t
 
@@ -789,5 +789,20 @@ module Bigarray : sig
       -> float32
       -> unit
       = "%caml_ba_float32_unsafe_set_3"
+  end
+end
+
+module Stable : sig
+  module V1 : sig
+    type nonrec t = t
+    [@@deriving
+      bin_io ~localize
+      , compare ~localize
+      , equal ~localize
+      , globalize
+      , hash
+      , sexp ~stackify
+      , stable_witness
+      , string]
   end
 end

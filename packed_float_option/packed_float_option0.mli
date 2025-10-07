@@ -1,3 +1,5 @@
+@@ portable
+
 (** [Packed_float_option.t] is the moral equivalent of [float option] represented under
     the hood as a regular float where [Packed_float_option.is_none = Float.is_nan].
 
@@ -224,9 +226,17 @@ module Unboxed : sig
 
   include Ppx_hash_lib.Hashable.S_any with type t := t
 
+  module Optional_syntax : sig
+    module Optional_syntax : sig
+      val is_none : t -> bool [@@zero_alloc]
+      val unsafe_value : t -> Float_u.t [@@zero_alloc]
+    end
+  end
+
+  include module type of Optional_syntax.Optional_syntax
+
   val typerep_of_t : t Typerep.t
   val none : unit -> t [@@zero_alloc]
-  val is_none : t -> bool [@@zero_alloc]
   val is_some : t -> bool [@@zero_alloc]
   val some : float# -> t [@@zero_alloc]
   val unchecked_some : float# -> t [@@zero_alloc]
@@ -236,16 +246,17 @@ module Unboxed : sig
   val zero : unit -> t [@@zero_alloc]
   val one : unit -> t [@@zero_alloc]
   val scale : t -> float# -> t [@@zero_alloc]
-  val equal : t -> t -> bool [@@zero_alloc]
 
-  (* Using double underscore as expected by [@deriving equal ~local] *)
-  val equal__local : local_ t -> local_ t -> bool [@@zero_alloc]
+  val%template equal : t @ m -> t @ m -> bool [@@mode m = (global, local)] [@@zero_alloc]
+
   val div : t -> float# -> t [@@zero_alloc]
   val abs : t -> t [@@zero_alloc]
-  val of_option : float option -> t
-  val of_option_local : local_ float option -> t
-  val to_option : t -> float option
-  val to_option_local : t -> local_ float option
+
+  [%%template:
+  [@@@mode.default m = (global, local)]
+
+  val of_option : float option @ m -> t
+  val to_option : t -> float option @ m]
 
   (** The result of [min] and [max] will be [none] if either operand is. *)
   val min : t -> t -> t
@@ -260,12 +271,14 @@ module Unboxed : sig
   val const : float -> t
   [@@zero_alloc]
 
-  (** Converters for the normal PFO. *)
-  val box : t -> boxed
+  [%%template:
+  [@@@mode.default m = (global, local)]
 
-  val box_local : local_ t -> local_ boxed
-  val unbox : local_ boxed -> t [@@zero_alloc]
-  val unbox_local : local_ boxed -> t [@@zero_alloc]
+  (** Converters for the normal PFO. *)
+  val box : t @ m -> boxed @ m
+  [@@zero_alloc_if_local m]
+
+  val unbox : boxed @ local -> t [@@zero_alloc]]
 
   (** [first_some x y] returns x if x is not none, else returns y *)
   val first_some : t -> t -> t
@@ -282,14 +295,6 @@ module Unboxed : sig
 
   val value : t -> default:Float_u.t -> Float_u.t [@@zero_alloc]
   val value_exn : t -> Float_u.t [@@zero_alloc]
-
-  module Optional_syntax : sig
-    module Optional_syntax : sig
-      val is_none : t -> bool [@@zero_alloc]
-      val unsafe_value : t -> Float_u.t [@@zero_alloc]
-    end
-  end
-
   val compare : t -> t -> int [@@zero_alloc]
 
   module Infix : sig
@@ -316,26 +321,7 @@ module Unboxed : sig
 
   val merge : t -> t -> f:(float# -> float# -> float#) -> t
 
-  module Ref : sig
-    type elt := t
-    type t
-
-    val create : elt -> t
-    val create_local : elt -> local_ t [@@zero_alloc]
-    val create_none : unit -> t
-    val create_zero : unit -> t
-    val get : local_ t -> elt [@@zero_alloc]
-    val set : local_ t -> elt -> unit [@@zero_alloc]
-    val set_none : local_ t -> unit [@@zero_alloc]
-    val add : local_ t -> elt -> unit
-
-    module O : sig
-      val ref : elt -> local_ t
-      val ( ! ) : local_ t -> elt [@@zero_alloc]
-      val ( := ) : local_ t -> elt -> unit [@@zero_alloc]
-      val ( += ) : local_ t -> elt -> unit [@@zero_alloc]
-    end
-  end
+  module Ref : Unboxed_ref_intf.T with type elt := t
 
   module Stable : sig
     module V1 : sig

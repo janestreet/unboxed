@@ -34,10 +34,9 @@ let[@inline] of_int_exn x = of_nativeint ((I.of_int_exn [@inlined hint]) x)
 
 module Shared_derived = struct
   let[@inline] t_of_sexp x = of_nativeint ((I.t_of_sexp [@inlined hint]) x)
-  let[@inline] sexp_of_t t = (I.sexp_of_t [@inlined hint]) (to_nativeint t)
 
-  let%template[@mode local] [@inline] sexp_of_t t = exclave_
-    (I.sexp_of_t [@mode local] [@inlined hint]) (to_nativeint t)
+  let%template[@alloc a = (heap, stack)] [@inline] sexp_of_t t =
+    (I.sexp_of_t [@alloc a] [@inlined hint]) (to_nativeint t) [@exclave_if_stack a]
   ;;
 
   include Bin_prot_unboxed_numbers.Nativeint_u
@@ -64,7 +63,7 @@ include Shared_derived
 
 (* Inlined from [Base.Int_conversions], and modified to operate over unboxed things. *)
 let is_representable_as_int =
-  if I.num_bits <= Sys.int_size
+  if I.num_bits <= (Sys.int_size |> I.of_int)
   then fun _ -> true
   else (
     let min = of_int_exn Base.Int.min_value in
@@ -316,8 +315,12 @@ let[@inline] ( lsr ) t x = of_nativeint ((I.(( lsr )) [@inlined hint]) (to_nativ
 let shift_right_logical = ( lsr )
 let[@inline] ceil_pow2 t = of_nativeint ((I.ceil_pow2 [@inlined hint]) (to_nativeint t))
 let[@inline] floor_pow2 t = of_nativeint ((I.floor_pow2 [@inlined hint]) (to_nativeint t))
-let[@inline] ceil_log2 t = (I.ceil_log2 [@inlined hint]) (to_nativeint t)
-let[@inline] floor_log2 t = (I.floor_log2 [@inlined hint]) (to_nativeint t)
+let[@inline] ceil_log2 t = (I.ceil_log2 [@inlined hint]) (to_nativeint t) |> of_nativeint
+
+let[@inline] floor_log2 t =
+  (I.floor_log2 [@inlined hint]) (to_nativeint t) |> of_nativeint
+;;
+
 let[@inline] is_pow2 t = (I.is_pow2 [@inlined hint]) (to_nativeint t)
 let[@inline] clz t = (I.clz [@inlined hint]) (to_nativeint t) |> of_nativeint
 let[@inline] ctz t = (I.ctz [@inlined hint]) (to_nativeint t) |> of_nativeint
@@ -347,28 +350,28 @@ end
 
 module Array_index = struct
   external get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     @@ portable
     = "%array_safe_get_indexed_by_nativeint#"
   [@@layout_poly]
 
   external set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     @@ portable
     = "%array_safe_set_indexed_by_nativeint#"
   [@@layout_poly]
 
   external unsafe_get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     @@ portable
     = "%array_unsafe_get_indexed_by_nativeint#"
   [@@layout_poly]
 
   external unsafe_set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     @@ portable
     = "%array_unsafe_set_indexed_by_nativeint#"
@@ -427,9 +430,73 @@ module Stable = struct
   end
 end
 
-module Hex = struct
+module Hex_unsigned = struct
+  type word_size =
+    | I64
+    | I32
+
+  let word_size () =
+    match Sys.word_size with
+    | 64 -> I64
+    | 32 -> I32
+    | word_size -> Base.Printf.failwithf "unsupported word size %d" word_size ()
+  ;;
+
+  module Local = struct
+    type nonrec t = t
+
+    let compare = Shared_derived.compare
+    let hash = Shared_derived.hash
+    let hash_fold_t = Shared_derived.hash_fold_t
+
+    let of_string s =
+      match word_size () with
+      | I64 -> of_int64_trunc (Int64_u.box (Int64_u.Hex_unsigned.Local.of_string s))
+      | I32 -> of_int32 (Int32_u.box (Int32_u.Hex_unsigned.Local.of_string s))
+    ;;
+
+    let t_of_sexp sexp =
+      match word_size () with
+      | I64 -> of_int64_trunc (Int64_u.box (Int64_u.Hex_unsigned.Local.t_of_sexp sexp))
+      | I32 -> of_int32 (Int32_u.box (Int32_u.Hex_unsigned.Local.t_of_sexp sexp))
+    ;;
+
+    let to_string t = exclave_
+      match word_size () with
+      | I64 -> Int64_u.Hex_unsigned.Local.to_string (Int64_u.unbox (to_int64 t))
+      | I32 ->
+        Int32_u.Hex_unsigned.Local.to_string
+          (Int32_u.unbox (I.to_int32_trunc (to_nativeint t)))
+    ;;
+
+    let sexp_of_t t = exclave_
+      match word_size () with
+      | I64 -> Int64_u.Hex_unsigned.Local.sexp_of_t (Int64_u.unbox (to_int64 t))
+      | I32 ->
+        Int32_u.Hex_unsigned.Local.sexp_of_t
+          (Int32_u.unbox (I.to_int32_trunc (to_nativeint t)))
+    ;;
+  end
+
   type nonrec t = t
 
-  let to_string t = to_nativeint t |> I.Hex.to_string
-  let to_string_hum ?delimiter t = to_nativeint t |> I.Hex.to_string_hum ?delimiter
+  let compare = Local.compare
+  let hash = Shared_derived.hash
+  let hash_fold_t = Shared_derived.hash_fold_t
+  let of_string = [%eta1 Local.of_string]
+  let t_of_sexp = [%eta1 Local.t_of_sexp]
+
+  let to_string t =
+    match word_size () with
+    | I64 -> Int64_u.Hex_unsigned.to_string (Int64_u.unbox (to_int64 t))
+    | I32 ->
+      Int32_u.Hex_unsigned.to_string (Int32_u.unbox (I.to_int32_trunc (to_nativeint t)))
+  ;;
+
+  let sexp_of_t t =
+    match word_size () with
+    | I64 -> Int64_u.Hex_unsigned.sexp_of_t (Int64_u.unbox (to_int64 t))
+    | I32 ->
+      Int32_u.Hex_unsigned.sexp_of_t (Int32_u.unbox (I.to_int32_trunc (to_nativeint t)))
+  ;;
 end

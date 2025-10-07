@@ -30,7 +30,8 @@ val globalize : local_ t -> t
 
 (** {3 Inlined from [Sexpable]} *)
 
-val%template sexp_of_t : t @ m -> Sexp.t @ m [@@mode m = (global, local)]
+val%template sexp_of_t : t @ m -> Sexp.t @ m
+[@@alloc a @ m = (heap @ global, stack @ local)]
 
 val t_of_sexp : Sexp.t -> t
 
@@ -150,6 +151,12 @@ val of_float : local_ float -> t
 
 (** Converts a float32 to a 64-bit float. *)
 val to_float : t -> float
+
+(** Converts a 64-bit unboxed float to the nearest representable float32. *)
+val of_float_u : float# -> t
+
+(** Converts a float32 to a 64-bit float#. *)
+val to_float_u : t -> float#
 
 (** Convert an integer to a float32. Note that this doesn't round trip in either
     direction. For example, [Float32.to_int (Float32.of_int max_int) <> max_int]. *)
@@ -746,5 +753,18 @@ module (Bigarray @@ nonportable) : sig
       -> int
       -> float32#
       -> unit
+  end
+end
+
+module Stable : sig
+  module V1 : sig
+    type nonrec t = t [@@deriving globalize, sexp, stable_witness, string]
+
+    (** We derive [bin_io], [equal], and [compare]. *)
+
+    include Bin_prot.Binable.S_any [@mode local] with type t := t
+
+    val equal : t -> t -> bool
+    val compare : t -> t -> int
   end
 end

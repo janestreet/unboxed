@@ -25,13 +25,12 @@ external to_float : float# -> (float[@local_opt]) @@ portable = "%box_float"
 *)
 
 module Shared_derived = struct
-  let[@inline] sexp_of_t t : Base.Sexp.t = (F.sexp_of_t [@inlined hint]) (to_float t)
-
-  let%template[@mode local] [@inline] sexp_of_t t : Base.Sexp.t = exclave_
-    (F.sexp_of_t [@mode local] [@inlined hint]) (to_float t)
+  let%template[@alloc a = (heap, stack)] [@inline] sexp_of_t t : Base.Sexp.t =
+    (F.sexp_of_t [@alloc a] [@inlined hint]) (to_float t) [@exclave_if_stack a]
   ;;
 
   let[@inline] t_of_sexp sexp : t = of_float ((F.t_of_sexp [@inlined hint]) sexp)
+  let t_sexp_grammar = Sexplib0.Sexp_grammar.coerce F.t_sexp_grammar
 
   include Bin_prot_unboxed_numbers.Float_u
 
@@ -62,7 +61,7 @@ let[@inline] between t ~low ~high : bool =
   (F.between [@inlined hint]) (to_float t) ~low:(to_float low) ~high:(to_float high)
 ;;
 
-let[@inline] clamp_exn t ~min ~max : t =
+let[@inline] [@zero_alloc strict] clamp_exn t ~min ~max : t =
   of_float
     ((F.clamp_exn [@inlined hint]) (to_float t) ~min:(to_float min) ~max:(to_float max))
 ;;
@@ -110,10 +109,36 @@ let[@inline] of_int64_preserve_order i : t =
 
 let[@inline] one_ulp ud t : t = of_float ((F.one_ulp [@inlined hint]) ud (to_float t))
 let[@inline] [@zero_alloc] to_int t : int = (F.to_int [@inlined hint]) (to_float t)
+
+let[@inline] [@zero_alloc] to_int_unchecked t : int =
+  (Base.Int.of_float_unchecked [@inlined hint]) (to_float t)
+;;
+
 let[@inline] truncate t : int = Stdlib.truncate (to_float t)
 let[@inline] of_int63 i : t = of_float ((F.of_int63 [@inlined hint]) i)
 let[@inline] of_int64 i : t = of_float ((F.of_int64 [@inlined hint]) i)
 let[@inline] to_int64 t : int64 = (F.to_int64 [@inlined hint]) (to_float t)
+
+external unbox_f32 : (float32[@local_opt]) -> float32# @@ portable = "%unbox_float32"
+external box_f32 : float32# -> (float32[@local_opt]) @@ portable = "%box_float32"
+
+external float32_of_float
+  :  local_ float
+  -> (float32[@local_opt])
+  @@ portable
+  = "%float32offloat"
+
+external float_of_float32
+  :  local_ float32
+  -> (float[@local_opt])
+  @@ portable
+  = "%floatoffloat32"
+
+let[@inline] [@zero_alloc] to_float32_u t : float32# =
+  unbox_f32 (float32_of_float (to_float t))
+;;
+
+let[@inline] [@zero_alloc] of_float32_u f : t = of_float (float_of_float32 (box_f32 f))
 let[@inline] round ?dir t : t = of_float ((F.round [@inlined hint]) ?dir (to_float t))
 let[@inline] iround ?dir t : int option = (F.iround [@inlined hint]) ?dir (to_float t)
 let[@inline] iround_exn ?dir t : int = (F.iround_exn [@inlined hint]) ?dir (to_float t)
@@ -436,6 +461,9 @@ module type Array = sig
   val init : int -> f:(int -> elt) -> t
   val iter : t -> f:(elt -> unit) -> unit
   val iteri : t -> f:(int -> elt -> unit) -> unit
+
+  val%template to_float_u_array : t @ m -> elt array @ m [@@mode m = (local, global)]
+  val%template of_float_u_array : elt array @ m -> t @ m [@@mode m = (local, global)]
 end
 
 module Array = struct
@@ -457,6 +485,32 @@ module Array = struct
   let length = FA.length
   let copy = FA.copy
   let unsafe_blit = FA.unsafe_blit
+
+  (* The use of %identity, as opposed to %obj_magic, is safe because the internal type
+     system used by the compiler's middle-end treats these two types identically (this is
+     a stronger requirement than just that they have the same runtime representation). *)
+  external to_float_u_array_external
+    :  (t[@local_opt])
+    -> (float# array[@local_opt])
+    @@ portable
+    = "%identity"
+
+  external of_float_u_array_external
+    :  (float# array[@local_opt])
+    -> (t[@local_opt])
+    @@ portable
+    = "%identity"
+
+  let%expect_test "[Float_array.t] is the same as [float# array], so [%identity] is safe" =
+    let tag_float_array = Obj.tag (Obj.repr (Float_array.create ~len:1 1.)) in
+    let tag_float_u_array = Obj.tag (Obj.repr [| #1. |]) in
+    assert (Int.equal tag_float_array tag_float_u_array);
+    print_endline (Int.to_string tag_float_array);
+    [%expect {| 254 |}]
+  ;;
+
+  let%template to_float_u_array = to_float_u_array_external [@@mode m = (local, global)]
+  let%template of_float_u_array = of_float_u_array_external [@@mode m = (local, global)]
 
   let custom_sexp_of_t sexp_of_a t =
     let sexp_of_a a = sexp_of_a (of_float a) in
@@ -495,6 +549,8 @@ module Polymorphic_array_helpers = struct
   let unsafe_get a i : float# = of_float (A.unsafe_get a i)
   let unsafe_set a i t : unit = A.unsafe_set a i (to_float t)
 end
+
+module type Ref = Ref_intf.T
 
 module Ref = struct
   type nonrec t = { mutable contents : t }

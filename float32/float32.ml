@@ -46,9 +46,9 @@ module Util = struct
     | List _ -> of_sexp_error "float32_of_sexp: atom needed" sexp
   ;;
 
-  let%template[@mode m = (global, local)] sexp_of_float32 n =
+  let%template[@alloc a = (heap, stack)] sexp_of_float32 n =
     let atom = format_float32 "%.9G" n in
-    Sexp.Atom atom [@exclave_if_local m]
+    Sexp.Atom atom [@exclave_if_stack a]
   ;;
 
   module Float32_replace_polymorphic_compare = struct
@@ -156,18 +156,56 @@ module Util = struct
     let bin_reader_float32 = [%bin_reader: float32]
     let bin_float32 = [%bin_type_class: float32]
   end
+
+  (* Stolen from [pervasives.ml].  Adds a "." at the end if needed.  It is in
+     [pervasives.mli], but it also says not to use it directly, so we copy and paste the
+     code. It makes the assumption on the string passed in argument that it was returned
+     by [format_float]. *)
+  let valid_float_lexem s =
+    let l = String.length s in
+    let rec loop i =
+      if Int.( >= ) i l
+      then s ^ "."
+      else (
+        match s.[i] with
+        | '0' .. '9' | '-' -> loop (i + 1)
+        | _ -> s)
+    in
+    loop 0
+  ;;
+end
+
+module Stable = struct
+  module V1 = struct
+    open Util
+
+    type t = float32
+    [@@deriving
+      bin_io ~localize
+      , compare ~localize
+      , equal ~localize
+      , globalize
+      , hash
+      , sexp ~stackify]
+
+    let to_string x = valid_float_lexem (format_float32 "%.9g" x)
+
+    let of_string s =
+      try float32_of_string s with
+      | _ -> invalid_argf "Float32.of_string %s" (globalize_string s) ()
+    ;;
+
+    let stable_witness = Ppx_stable_witness_runtime.Stable_witness.assert_stable
+  end
 end
 
 module T = struct
-  open Util
-
-  type t = float32
-  [@@deriving bin_io ~localize, compare ~localize, globalize, hash, sexp ~localize]
-
-  let hashable : t Hashable.t = { hash; compare; sexp_of_t }
+  include Stable.V1
 end
 
 include T
+
+let hashable : t Hashable.t = { hash; compare; sexp_of_t }
 
 include%template Comparator.Make [@mode local] [@modality portable] (T)
 
@@ -403,34 +441,11 @@ let box =
 
 let invariant (_ : t) = ()
 
-let of_string s =
-  try float32_of_string s with
-  | _ -> invalid_argf "Float32.of_string %s" (globalize_string s) ()
-;;
-
 let of_string_opt s =
   try Some (float32_of_string s) with
   | Failure _ -> None
 ;;
 
-(* Stolen from [pervasives.ml].  Adds a "." at the end if needed.  It is in
-   [pervasives.mli], but it also says not to use it directly, so we copy and paste the
-   code. It makes the assumption on the string passed in argument that it was returned by
-   [format_float]. *)
-let valid_float_lexem s =
-  let l = String.length s in
-  let rec loop i =
-    if Int.( >= ) i l
-    then s ^ "."
-    else (
-      match s.[i] with
-      | '0' .. '9' | '-' -> loop (i + 1)
-      | _ -> s)
-  in
-  loop 0
-;;
-
-let to_string x = valid_float_lexem (Util.format_float32 "%.9g" x)
 let max_value = infinity
 let min_value = neg_infinity
 let min_positive_subnormal_value = pow 2.s (-149.s)

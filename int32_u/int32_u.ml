@@ -33,8 +33,8 @@ module Shared_derived = struct
   let[@inline] t_of_sexp x = of_int32 ((I.t_of_sexp [@inlined hint]) x)
   let[@inline] sexp_of_t t = (I.sexp_of_t [@inlined hint]) (to_int32 t)
 
-  let%template[@mode local] [@inline] sexp_of_t t = exclave_
-    (I.sexp_of_t [@mode local] [@inlined hint]) (to_int32 t)
+  let%template[@alloc stack] [@inline] sexp_of_t t = exclave_
+    (I.sexp_of_t [@alloc stack] [@inlined hint]) (to_int32 t)
   ;;
 
   include Bin_prot_unboxed_numbers.Int32_u
@@ -227,8 +227,8 @@ let[@inline] ( lsr ) t x = of_int32 ((I.(( lsr )) [@inlined hint]) (to_int32 t) 
 let shift_right_logical = ( lsr )
 let[@inline] ceil_pow2 t = of_int32 ((I.ceil_pow2 [@inlined hint]) (to_int32 t))
 let[@inline] floor_pow2 t = of_int32 ((I.floor_pow2 [@inlined hint]) (to_int32 t))
-let[@inline] ceil_log2 t = (I.ceil_log2 [@inlined hint]) (to_int32 t)
-let[@inline] floor_log2 t = (I.floor_log2 [@inlined hint]) (to_int32 t)
+let[@inline] ceil_log2 t = (I.ceil_log2 [@inlined hint]) (to_int32 t) |> of_int32
+let[@inline] floor_log2 t = (I.floor_log2 [@inlined hint]) (to_int32 t) |> of_int32
 let[@inline] is_pow2 t = (I.is_pow2 [@inlined hint]) (to_int32 t)
 let[@inline] clz t = (I.clz [@inlined hint]) (to_int32 t) |> of_int32
 let[@inline] ctz t = (I.ctz [@inlined hint]) (to_int32 t) |> of_int32
@@ -267,28 +267,28 @@ end
 
 module Array_index = struct
   external get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     @@ portable
     = "%array_safe_get_indexed_by_int32#"
   [@@layout_poly]
 
   external set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     @@ portable
     = "%array_safe_set_indexed_by_int32#"
   [@@layout_poly]
 
   external unsafe_get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     @@ portable
     = "%array_unsafe_get_indexed_by_int32#"
   [@@layout_poly]
 
   external unsafe_set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     @@ portable
     = "%array_unsafe_set_indexed_by_int32#"
@@ -347,13 +347,6 @@ module Stable = struct
   end
 end
 
-module Hex = struct
-  type nonrec t = t
-
-  let to_string t = to_int32 t |> I.Hex.to_string
-  let to_string_hum ?delimiter t = to_int32 t |> I.Hex.to_string_hum ?delimiter
-end
-
 module Hex_unsigned = struct
   module Bytes = Base.Bytes
   module Nothing = Base.Nothing
@@ -401,8 +394,8 @@ module Hex_unsigned = struct
   let compare = Local.compare
   let hash = Shared_derived.hash
   let hash_fold_t = Shared_derived.hash_fold_t
-  let of_string = Local.of_string
-  let t_of_sexp sexp : t = Local.t_of_sexp sexp
+  let of_string = [%eta1 Local.of_string]
+  let t_of_sexp = [%eta1 Local.t_of_sexp]
 
   let[@inline never] to_string t =
     let t = to_int64_u t in

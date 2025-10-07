@@ -33,9 +33,11 @@ val globalize : local_ t -> t [@@zero_alloc]
 
 (** {3 Inlined from [Sexpable]} *)
 
-val%template sexp_of_t : t @ m -> Sexp.t @ m [@@mode m = (global, local)]
+val%template sexp_of_t : t @ m -> Sexp.t @ m
+[@@alloc a @ m = (heap @ global, stack @ local)]
 
 val t_of_sexp : Sexp.t -> t
+val t_sexp_grammar : t Sexplib0.Sexp_grammar.t
 
 (** {3 For [bin_io]} *)
 
@@ -80,6 +82,7 @@ val between : t -> low:t -> high:t -> bool
 
     Raises if [not (min <= max)]. *)
 val clamp_exn : t -> min:t -> max:t -> t
+[@@zero_alloc]
 
 (** {3 Inlined from [Pretty_printer]} *)
 
@@ -159,10 +162,17 @@ val of_int64_preserve_order : int64 -> t
 val one_ulp : [ `Up | `Down ] -> t -> t
 
 val to_int : t -> int [@@zero_alloc]
+val to_int_unchecked : t -> int [@@zero_alloc]
 val truncate : t -> int
 val of_int63 : Int63.t -> t
 val of_int64 : int64 -> t
 val to_int64 : t -> int64
+
+(* Convert a float# to the nearest representable float32#. *)
+val to_float32_u : t -> float32#
+
+(* Convert a float32# to a float# (exactly). *)
+val of_float32_u : float32# -> t
 
 (** [round] rounds a float to an integer float. [iround{,_exn}] rounds a float to an int.
     Both round according to a direction [dir], with default [dir] being [`Nearest].
@@ -713,6 +723,12 @@ module type Array = sig
   val init : int -> f:(int -> elt) -> t
   val iter : t -> f:(elt -> unit) -> unit
   val iteri : t -> f:(int -> elt -> unit) -> unit
+
+  (** Identity no-op conversions between [t] and [elt array]. They are the same type at
+      runtime. *)
+
+  val%template to_float_u_array : t @ m -> elt array @ m [@@mode m = (local, global)]
+  val%template of_float_u_array : elt array @ m -> t @ m [@@mode m = (local, global)]
 end
 
 (** The [Array] module provides some helpers that wrap common operations on [floatarray]s
@@ -749,23 +765,12 @@ end
 module Polymorphic_array_helpers :
   Array_getters_and_setters with type t := float array and type elt := float#
 
+module type Ref = Ref_intf.T
+
 module Ref : sig
-  type elt := float#
   type t = { mutable contents : float# }
 
-  val create : elt -> t
-  val create_local : elt -> local_ t [@@zero_alloc]
-  val create_zero : unit -> t
-  val get : local_ t -> elt [@@zero_alloc]
-  val set : local_ t -> elt -> unit [@@zero_alloc]
-  val add : local_ t -> elt -> unit [@@zero_alloc]
-
-  module O : sig
-    val ref : elt -> local_ t [@@zero_alloc]
-    val ( ! ) : local_ t -> elt [@@zero_alloc]
-    val ( := ) : local_ t -> elt -> unit [@@zero_alloc]
-    val ( += ) : local_ t -> elt -> unit [@@zero_alloc]
-  end
+  include Ref with type elt := float# and type t := t
 end
 
 module Option : sig

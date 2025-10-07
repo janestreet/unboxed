@@ -2,39 +2,53 @@
     this alias to define the [Array] submodule below. [Base.Array.t] and [Stdlib.Array.t]
     are unsuitable as they re-export [array] with a parameter of layout [value].
 *)
-type ('a : any_non_null) builtin_array = 'a array
+type ('a : any mod separable) builtin_array = 'a array
 
 open Base
 open Ocaml_intrinsics_kernel.Conditional
 module F = Float32
 module Boxed = Float32
 
-type t = float32#
-
 external to_float32 : float32# -> (float32[@local_opt]) @@ portable = "%box_float32"
 external of_float32 : (float32[@local_opt]) -> float32# @@ portable = "%unbox_float32"
 
-let globalize (local_ t) : t = t
-let[@inline] sexp_of_t t : Base.Sexp.t = (F.sexp_of_t [@inlined hint]) (to_float32 t)
+module Stable = struct
+  module V1 = struct
+    open struct
+      module F = F.Stable.V1
+    end
 
-let[@inline] sexp_of_t__local t : Base.Sexp.t = exclave_
-  (F.sexp_of_t__local [@inlined hint]) (to_float32 t)
-;;
+    type t = float32#
 
-let[@inline] t_of_sexp sexp : t = of_float32 ((F.t_of_sexp [@inlined hint]) sexp)
+    let globalize (local_ t) : t = t
 
-include Bin_prot_unboxed_numbers.Float32_u
+    let%template[@alloc a = (heap, stack)] [@inline] sexp_of_t t : Base.Sexp.t =
+      (F.sexp_of_t [@alloc a] [@inlined hint]) (to_float32 t) [@exclave_if_stack a]
+    ;;
 
-[%%template
-[@@@mode.default m = (global, local)]
+    let[@inline] t_of_sexp sexp : t = of_float32 ((F.t_of_sexp [@inlined hint]) sexp)
 
-let[@inline] [@zero_alloc] equal t1 t2 : bool =
-  (F.equal [@mode m]) (to_float32 t1) (to_float32 t2)
-;;
+    include Bin_prot_unboxed_numbers.Float32_u
 
-let[@inline] [@zero_alloc] compare t1 t2 : int =
-  (F.compare [@mode m]) (to_float32 t1) (to_float32 t2)
-;;]
+    let[@inline] to_string t : string = (F.to_string [@inlined hint]) (to_float32 t)
+    let[@inline] of_string s : t = of_float32 ((F.of_string [@inlined hint]) s)
+
+    [%%template
+    [@@@mode.default m = (global, local)]
+
+    let[@inline] [@zero_alloc] equal t1 t2 : bool =
+      (F.equal [@mode m]) (to_float32 t1) (to_float32 t2)
+    ;;
+
+    let[@inline] [@zero_alloc] compare t1 t2 : int =
+      (F.compare [@mode m]) (to_float32 t1) (to_float32 t2)
+    ;;]
+
+    let stable_witness = Ppx_stable_witness_runtime.Stable_witness.assert_stable
+  end
+end
+
+include Stable.V1
 
 let[@inline] ascending t1 t2 : int =
   (F.ascending [@inlined hint]) (to_float32 t1) (to_float32 t2)
@@ -98,6 +112,15 @@ let[@inline] of_int64 i : t = of_float32 ((F.of_int64 [@inlined hint]) i)
 let[@inline] to_int64 t : int64 = (F.to_int64 [@inlined hint]) (to_float32 t)
 let[@inline] of_float i : t = of_float32 (F.of_float i)
 let[@inline] to_float t : float = F.to_float (to_float32 t)
+
+external unbox_f64 : (float[@local_opt]) -> float# @@ portable = "%unbox_float"
+external box_f64 : float# -> (float[@local_opt]) @@ portable = "%box_float"
+
+let[@inline] [@zero_alloc opt] to_float_u t : float# =
+  unbox_f64 ((to_float [@inlined hint]) t)
+;;
+
+let[@inline] of_float_u f : t = (of_float [@inlined hint]) (box_f64 f)
 let[@inline] round ?dir t : t = of_float32 ((F.round [@inlined hint]) ?dir (to_float32 t))
 let[@inline] iround ?dir t : int option = (F.iround [@inlined hint]) ?dir (to_float32 t)
 let[@inline] iround_exn ?dir t : int = (F.iround_exn [@inlined hint]) ?dir (to_float32 t)
@@ -219,9 +242,6 @@ module O_dot = struct
 
   let[@inline] ( ~-. ) t : t = of_float32 (F.O_dot.( ~-. ) (to_float32 t))
 end
-
-let[@inline] to_string t : string = (F.to_string [@inlined hint]) (to_float32 t)
-let[@inline] of_string s : t = of_float32 ((F.of_string [@inlined hint]) s)
 
 let[@inline] to_string_hum ?delimiter ?decimals ?strip_zero ?explicit_plus t : string =
   (F.to_string_hum [@inlined hint])

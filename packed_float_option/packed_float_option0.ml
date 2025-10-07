@@ -45,7 +45,7 @@ end
 
 include Stable.V1
 
-include%template Comparable.Make_binable [@mode local] (Stable.V1)
+include%template Comparable.Make_binable [@mode local] [@modality portable] (Stable.V1)
 
 module Optional_syntax = struct
   module Optional_syntax = struct
@@ -93,8 +93,12 @@ let value_map t ~f ~default =
 ;;
 
 let zero = Float.zero
-let[@inline] of_float_nan_as_none (x : float) = x
-let to_float_none_as_nan (x : t) = x
+
+[%%template
+[@@@mode.default m = (global, local)]
+
+let[@inline] of_float_nan_as_none (x : float @ m) = x [@exclave_if_local m]
+let[@inline] to_float_none_as_nan (x : t @ m) = x [@exclave_if_local m]]
 
 module Infix = struct
   (* [nan] behaves essentially correctly for these functions. Note that eg
@@ -123,8 +127,8 @@ end
 
 module Local = struct
   let globalize = globalize_float
-  let of_float_nan_as_none (local_ (x : float)) = exclave_ x
-  let to_float_none_as_nan (local_ (x : t)) = exclave_ x
+  let of_float_nan_as_none = (of_float_nan_as_none [@mode local])
+  let to_float_none_as_nan = (to_float_none_as_nan [@mode local])
 
   (* Evaluatues [none = none] to true *)
   let equal = [%compare_local.equal: float]
@@ -246,7 +250,8 @@ let validate ~none:none_check ~some:some_check t =
 let validate_option_bound ~may_be_none ?min:(lower = Unbounded) ?max:(upper = Unbounded) t
   =
   match%optional t with
-  | None -> if may_be_none then Validate.pass else Validate.fail "value may not be none"
+  | None ->
+    if may_be_none then Validate.get_pass () else Validate.fail "value may not be none"
   | Some value ->
     Validate.bounded ~lower ~upper ~compare:Float.compare ~name:Float.to_string value
 ;;
@@ -259,6 +264,7 @@ module Unboxed = struct
   include (
     Float_u :
     sig
+    @@ portable
       type t = float#
 
       val globalize : local_ t -> t
@@ -281,10 +287,16 @@ module Unboxed = struct
   let[@zero_alloc] none () = Float_u.nan ()
   let[@zero_alloc] is_none (t : t) : bool = Float_u.is_nan (t :> float#)
   let unsafe_value (t : t) : float# = (t :> float#)
-  let[@inline] box t = Float_u.to_float t
-  let[@inline] box_local (local_ t) = exclave_ Float_u.to_float t
-  let[@inline] [@zero_alloc] unbox t = Float_u.of_float t
-  let[@inline] [@zero_alloc] unbox_local (local_ t) = Float_u.of_float t
+
+  [%%template
+  [@@@mode.default m = (global, local)]
+
+  let[@inline] [@zero_alloc_if_local m] box (t @ m) =
+    Float_u.to_float t [@exclave_if_local m]
+  ;;
+
+  let[@inline] [@zero_alloc] unbox (t @ local) = Float_u.of_float t]
+
   let[@zero_alloc] is_some t = not (is_none t)
   let[@inline] [@zero_alloc] const t = Float_u.of_float t
   let[@inline] [@zero_alloc] abs t = Float_u.abs t
@@ -299,7 +311,7 @@ module Unboxed = struct
     unchecked_some v
   ;;
 
-  let of_option_local (local_ opt) =
+  let%template[@mode m = (global, local)] [@zero_alloc] of_option (opt @ m) =
     match opt with
     | None -> none ()
     | Some x -> some (Float_u.of_float x)
@@ -336,12 +348,12 @@ module Unboxed = struct
     | Some x, Some y -> f x y
   ;;
 
-  let of_option o = of_option o |> unbox
-
-  let to_option t =
+  let%template[@mode m = (global, local)] to_option t =
     match%optional_u (t : t) with
     | None -> None
-    | Some f -> Some (Float_u.to_float f)
+    | Some f ->
+      let f = Float_u.to_float f in
+      Some f [@exclave_if_local m]
   ;;
 
   let[@cold] raise__no_value (type a : float64) _ : a =
@@ -353,12 +365,6 @@ module Unboxed = struct
     match%optional_u (t : t) with
     | None -> raise__no_value t
     | Some f -> f
-  ;;
-
-  let to_option_local t = exclave_
-    match%optional_u (t : t) with
-    | None -> None
-    | Some f -> Some (Float_u.to_float f)
   ;;
 
   let[@inline] [@zero_alloc] neg t = Float_u.neg t
@@ -387,13 +393,15 @@ module Unboxed = struct
     open Base_quickcheck
 
     let quickcheck_generator =
-      Generator.Via_thunk.map (Generator.option Generator.float) ~f:(fun f () ->
-        of_option (f ()))
+      (Generator.Via_thunk.map [@mode portable])
+        ((Generator.option [@mode portable]) Generator.float)
+        ~f:(fun f () -> of_option (f ()))
     ;;
 
     let quickcheck_observer =
-      Observer.Via_thunk.unmap (Observer.option Observer.float) ~f:(fun f () ->
-        to_option (f ()))
+      (Observer.Via_thunk.unmap [@mode portable])
+        ((Observer.option [@mode portable]) Observer.float)
+        ~f:(fun f () -> to_option (f ()))
     ;;
 
     let quickcheck_shrinker = Shrinker.atomic
@@ -402,7 +410,7 @@ module Unboxed = struct
   module Array = struct
     include Float_u.Array
 
-    let sexp_of_t = custom_sexp_of_t sexp_of_t
+    let sexp_of_t t = custom_sexp_of_t sexp_of_t t
   end
 
   module Ref = struct
@@ -422,6 +430,7 @@ module Unboxed = struct
       include (
         F :
         sig
+        @@ portable
           include%template Bin_prot.Binable.S_any [@mode local] with type t := t
 
           include Ppx_hash_lib.Hashable.S_any with type t := t

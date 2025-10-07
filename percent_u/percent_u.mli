@@ -1,3 +1,5 @@
+@@ portable
+
 open! Core
 open Import
 
@@ -50,7 +52,7 @@ val max : t -> t -> t [@@zero_alloc]
 val ascending : t -> t -> int
 val descending : t -> t -> int
 val between : t -> low:t -> high:t -> bool
-val clamp_exn : t -> min:t -> max:t -> t
+val clamp_exn : t -> min:t -> max:t -> t [@@zero_alloc]
 val is_nan : t -> bool [@@zero_alloc]
 
 (** Conversion
@@ -75,6 +77,7 @@ val zero : unit -> t [@@zero_alloc]
 val one_hundred_percent : unit -> t [@@zero_alloc]
 val apply : t -> Float_u.t -> Float_u.t [@@zero_alloc]
 val scale : t -> Float_u.t -> t [@@zero_alloc]
+val select : bool -> t -> t -> t [@@zero_alloc]
 
 module Option : sig
   type value := t
@@ -116,6 +119,10 @@ module Option : sig
       returned may be [none]. *)
   val unchecked_some : value -> t
   [@@zero_alloc]
+
+  val select : bool -> t -> t -> t [@@zero_alloc]
+
+  module Ref : Packed_float_option.Unboxed_ref with type elt := t
 
   module Optional_syntax : sig
     module Optional_syntax : sig

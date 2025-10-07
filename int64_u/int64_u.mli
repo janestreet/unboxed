@@ -38,9 +38,11 @@ val to_int_exn : t -> int [@@zero_alloc]
 
 (** {3 Inlined from [Sexpable]} *)
 
-val%template sexp_of_t : t @ m -> Sexp.t @ m [@@mode m = (global, local)]
+val%template sexp_of_t : t @ m -> Sexp.t @ m
+[@@alloc a @ m = (heap @ global, stack @ local)]
 
 val t_of_sexp : Sexp.t -> t
+val t_sexp_grammar : t Sexplib0.Sexp_grammar.t
 
 (** {3 For [bin_io]} *)
 
@@ -116,13 +118,6 @@ val sign : t -> Sign.t
 
 (** {3 Inlined from [Invariant.S]} *)
 val invariant : t -> unit [@@zero_alloc]
-
-module Hex : sig
-  type nonrec t = t
-
-  val to_string : t -> string
-  val to_string_hum : ?delimiter:char -> t -> string
-end
 
 (** [delimiter] is an underscore by default. *)
 val to_string_hum : ?delimiter:char -> t -> string
@@ -224,7 +219,7 @@ val of_float_unchecked : float# -> t
 
 (** The number of bits available in this integer type. Note that the integer
     representations are signed. *)
-val num_bits : int
+val num_bits : int64
 
 (** The largest representable integer. *)
 val max_value : unit -> t [@@zero_alloc]
@@ -247,11 +242,11 @@ val floor_pow2 : t -> t
 [@@zero_alloc]
 
 (** [ceil_log2 x] returns the ceiling of log-base-2 of [x], and raises if [x <= 0]. *)
-val ceil_log2 : t -> int
+val ceil_log2 : t -> t
 [@@zero_alloc]
 
 (** [floor_log2 x] returns the floor of log-base-2 of [x], and raises if [x <= 0]. *)
-val floor_log2 : t -> int
+val floor_log2 : t -> t
 [@@zero_alloc]
 
 (** [is_pow2 x] returns true iff [x] is a power of 2. [is_pow2] raises if [x <= 0]. *)
@@ -409,25 +404,25 @@ val select : bool -> t -> t -> t [@@zero_alloc]
 
 module Array_index : sig
   external get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     = "%array_safe_get_indexed_by_int64#"
   [@@layout_poly]
 
   external set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     = "%array_safe_set_indexed_by_int64#"
   [@@layout_poly]
 
   external unsafe_get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     = "%array_unsafe_get_indexed_by_int64#"
   [@@layout_poly]
 
   external unsafe_set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     = "%array_unsafe_set_indexed_by_int64#"
   [@@layout_poly]
@@ -472,14 +467,15 @@ end
 
 module Stable : sig
   module V1 : sig
-    type nonrec t = t [@@deriving stable_witness]
+    type nonrec t = t [@@deriving stable_witness, globalize]
 
     (** We derive [sexp], [bin_io], [hash], [typerep], [string], [equal], and [compare]. *)
 
     val sexp_of_t : t -> Sexp.t
     val t_of_sexp : Sexp.t -> t
 
-    include Bin_prot.Binable.S_any with type t := t
+    include%template Bin_prot.Binable.S_any [@mode local] with type t := t
+
     include Ppx_hash_lib.Hashable.S_any with type t := t
 
     val typerep_of_t : t Typerep_lib.Std.Typerep.t
@@ -521,9 +517,9 @@ module Hex_unsigned : sig
 
   val compare : t -> t -> int
   val sexp_of_t : t -> Sexp.t
-  val t_of_sexp : Sexp.t @ local -> t
+  val t_of_sexp : Sexp.t @ local -> t [@@zero_alloc]
   val to_string : t -> string
-  val of_string : string @ local -> t
+  val of_string : string @ local -> t [@@zero_alloc]
 
   module Local : sig
     type nonrec t = t
@@ -531,10 +527,10 @@ module Hex_unsigned : sig
     include Ppx_hash_lib.Hashable.S_any with type t := t
 
     val compare : t -> t -> int
-    val sexp_of_t : t -> Sexp.t @ local
-    val t_of_sexp : Sexp.t @ local -> t
-    val to_string : t -> string @ local
-    val of_string : string @ local -> t
+    val sexp_of_t : t -> Sexp.t @ local [@@zero_alloc]
+    val t_of_sexp : Sexp.t @ local -> t [@@zero_alloc]
+    val to_string : t -> string @ local [@@zero_alloc]
+    val of_string : string @ local -> t [@@zero_alloc]
   end
 
   module Private : sig

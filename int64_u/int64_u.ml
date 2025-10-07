@@ -35,11 +35,12 @@ let[@inline] of_int_exn x = of_int64 ((I.of_int_exn [@inlined hint]) x)
 
 module Shared_derived = struct
   let[@inline] t_of_sexp x = of_int64 ((I.t_of_sexp [@inlined hint]) x)
-  let[@inline] sexp_of_t t = (I.sexp_of_t [@inlined hint]) (to_int64 t)
 
-  let%template[@mode local] [@inline] sexp_of_t t = exclave_
-    (I.sexp_of_t [@mode local] [@inlined hint]) (to_int64 t)
+  let%template[@alloc a = (heap, stack)] [@inline] sexp_of_t t =
+    (I.sexp_of_t [@alloc a] [@inlined hint]) (to_int64 t) [@exclave_if_stack a]
   ;;
+
+  let t_sexp_grammar = Sexplib0.Sexp_grammar.coerce I.t_sexp_grammar
 
   include Bin_prot_unboxed_numbers.Int64_u
 
@@ -215,8 +216,8 @@ let[@inline] ( lsr ) t x = of_int64 ((I.(( lsr )) [@inlined hint]) (to_int64 t) 
 let[@inline] shift_right_logical t i = t lsr i
 let[@inline] ceil_pow2 t = of_int64 ((I.ceil_pow2 [@inlined hint]) (to_int64 t))
 let[@inline] floor_pow2 t = of_int64 ((I.floor_pow2 [@inlined hint]) (to_int64 t))
-let[@inline] ceil_log2 t = (I.ceil_log2 [@inlined hint]) (to_int64 t)
-let[@inline] floor_log2 t = (I.floor_log2 [@inlined hint]) (to_int64 t)
+let[@inline] ceil_log2 t = (I.ceil_log2 [@inlined hint]) (to_int64 t) |> of_int64
+let[@inline] floor_log2 t = (I.floor_log2 [@inlined hint]) (to_int64 t) |> of_int64
 let[@inline] is_pow2 t = (I.is_pow2 [@inlined hint]) (to_int64 t)
 let[@inline] clz t = (I.clz [@inlined hint]) (to_int64 t) |> of_int64
 let[@inline] ctz t = (I.ctz [@inlined hint]) (to_int64 t) |> of_int64
@@ -266,28 +267,28 @@ let[@inline] [@zero_alloc] rev_bits t =
 
 module Array_index = struct
   external get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     @@ portable
     = "%array_safe_get_indexed_by_int64#"
   [@@layout_poly]
 
   external set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     @@ portable
     = "%array_safe_set_indexed_by_int64#"
   [@@layout_poly]
 
   external unsafe_get
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a
     @@ portable
     = "%array_unsafe_get_indexed_by_int64#"
   [@@layout_poly]
 
   external unsafe_set
-    : ('a : any_non_null).
+    : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     @@ portable
     = "%array_unsafe_set_indexed_by_int64#"
@@ -377,7 +378,7 @@ end
 
 module Stable = struct
   module V1 = struct
-    type nonrec t = t
+    type nonrec t = t [@@deriving globalize]
 
     include Shared_derived
 
@@ -606,13 +607,6 @@ module Hex_unsigned = struct
   ;;
 
   let[@inline] sexp_of_t t : Sexp.t = Atom (to_string t)
-end
-
-module Hex = struct
-  type nonrec t = t
-
-  let to_string t = to_int64 t |> I.Hex.to_string
-  let to_string_hum ?delimiter t = to_int64 t |> I.Hex.to_string_hum ?delimiter
 end
 
 module Option = struct
