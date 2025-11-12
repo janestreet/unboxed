@@ -5,7 +5,7 @@ open! Core
 (** Utilities for unboxed float32s. This module is mostly a copy of Float32, but with much
     functionality missing because it can't yet be implemented for unboxed float32s or
     unboxed types generally. *)
-type t = float32# [@@deriving quickcheck]
+type t = float32# [@@deriving globalize, quickcheck]
 
 module Boxed = Float32
 
@@ -19,7 +19,6 @@ module Boxed = Float32
 
 external of_float32 : (float32[@local_opt]) -> t = "%unbox_float32"
 external to_float32 : t -> (float32[@local_opt]) = "%box_float32"
-val globalize : local_ t -> t
 
 (** [max] and [min] will return nan if either argument is nan.
 
@@ -37,7 +36,7 @@ val t_of_sexp : Sexp.t -> t
 
 (** {3 For [bin_io]} *)
 
-include%template Bin_prot.Binable.S_any [@mode local] with type t := t
+include%template Bin_prot.Binable.S [@mode local] with type t := t
 
 (** {3 Inlined from [Comparable]} *)
 
@@ -762,7 +761,7 @@ module Stable : sig
 
     (** We derive [bin_io], [equal], and [compare]. *)
 
-    include Bin_prot.Binable.S_any [@mode local] with type t := t
+    include Bin_prot.Binable.S [@mode local] with type t := t
 
     val equal : t -> t -> bool
     val compare : t -> t -> int

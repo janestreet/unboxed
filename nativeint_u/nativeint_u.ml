@@ -2,6 +2,8 @@ module I = Base.Nativeint
 
 type t = nativeint#
 
+let[@inline] globalize (local_ (t : t)) = t
+
 module Boxed = Core.Nativeint
 
 external of_nativeint : (nativeint[@local_opt]) -> t @@ portable = "%unbox_nativeint"

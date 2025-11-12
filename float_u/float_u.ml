@@ -37,6 +37,7 @@ module Shared_derived = struct
   let[@inline] hash_fold_t state t = (F.hash_fold_t [@inlined hint]) state (to_float t)
   let[@inline] hash t = (F.hash [@inlined hint]) (to_float t)
   let typerep_of_t = Typerep_lib.Std.Typerep.Float_u
+  let typename_of_t = Typerep_lib.Std.typename_of_float_u
   let[@inline] to_string t : string = (F.to_string [@inlined hint]) (to_float t)
   let[@inline] of_string s : t = of_float ((F.of_string [@inlined hint]) s)
 
@@ -456,8 +457,12 @@ module type Array = sig
     -> len:int
     -> unit
 
+  val compare : t -> t -> int
   val copy : t -> t
+  val t_of_sexp : Core.Sexp.t -> t @@ portable
+  val sexp_of_t : t -> Core.Sexp.t @@ portable
   val custom_sexp_of_t : (elt -> Core.Sexp.t) -> t -> Core.Sexp.t
+  val custom_t_of_sexp : (Core.Sexp.t -> elt) -> Core.Sexp.t -> t
   val init : int -> f:(int -> elt) -> t
   val iter : t -> f:(elt -> unit) -> unit
   val iteri : t -> f:(int -> elt -> unit) -> unit
@@ -467,7 +472,7 @@ module type Array = sig
 end
 
 module Array = struct
-  type t = Float_array.t
+  type t = Float_array.t [@@deriving bin_io]
 
   let[@zero_alloc assume_unless_opt] get a i : float# = of_float (FA.get a i)
   let[@zero_alloc assume_unless_opt] set a i t : unit = FA.set a i (to_float t)
@@ -485,6 +490,9 @@ module Array = struct
   let length = FA.length
   let copy = FA.copy
   let unsafe_blit = FA.unsafe_blit
+  let t_of_sexp = FA.t_of_sexp
+  let sexp_of_t = FA.sexp_of_t
+  let compare = FA.compare
 
   (* The use of %identity, as opposed to %obj_magic, is safe because the internal type
      system used by the compiler's middle-end treats these two types identically (this is
@@ -515,6 +523,11 @@ module Array = struct
   let custom_sexp_of_t sexp_of_a t =
     let sexp_of_a a = sexp_of_a (of_float a) in
     FA.custom_sexp_of_t sexp_of_a t
+  ;;
+
+  let custom_t_of_sexp a_of_sexp t =
+    let a_of_sexp sexp = to_float (a_of_sexp sexp) in
+    FA.custom_t_of_sexp a_of_sexp t
   ;;
 
   let iter t ~f = (FA.iter [@inlined hint]) t ~f:(fun [@inline] x -> f (of_float x))
@@ -600,6 +613,7 @@ module Option = struct
   type t = value
 
   let typerep_of_t = typerep_of_t
+  let typename_of_t = typename_of_t
 
   (* The magic value for [none] is a signaling nan, which will cause many floating
      point operations to fail. In particular, comparisons should fail rather than

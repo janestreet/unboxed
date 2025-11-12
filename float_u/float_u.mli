@@ -5,7 +5,7 @@ open! Core
 (** Utilities for unboxed floats. This module is mostly a copy of Base's Float module, but
     with much functionality missing because it can't yet be implemented for unboxed floats
     or unboxed types generally. *)
-type t = float# [@@deriving quickcheck]
+type t = float# [@@deriving globalize, quickcheck]
 
 module Boxed = Float
 
@@ -19,10 +19,6 @@ module Boxed = Float
 
 external to_float : float# -> (float[@local_opt]) = "%box_float"
 external of_float : (float[@local_opt]) -> float# = "%unbox_float"
-
-(** Globalize *)
-
-val globalize : local_ t -> t [@@zero_alloc]
 
 (** [max] and [min] will return nan if either argument is nan.
 
@@ -41,7 +37,7 @@ val t_sexp_grammar : t Sexplib0.Sexp_grammar.t
 
 (** {3 For [bin_io]} *)
 
-include%template Bin_prot.Binable.S_any [@mode local] with type t := t
+include%template Bin_prot.Binable.S [@mode local] with type t := t
 
 (** {3 For [hash]} *)
 
@@ -50,6 +46,7 @@ include Ppx_hash_lib.Hashable.S_any with type t := t
 (** {3 From [Typerep]} *)
 
 val typerep_of_t : t Typerep.t
+val typename_of_t : t Typerep_lib.Typename.t
 
 (** {3 Inlined from [Comparable]} *)
 
@@ -718,8 +715,12 @@ module type Array = sig
     -> len:int
     -> unit
 
+  val compare : t -> t -> int
   val copy : t -> t
+  val t_of_sexp : Sexp.t -> t @@ portable
+  val sexp_of_t : t -> Sexp.t @@ portable
   val custom_sexp_of_t : (elt -> Sexp.t) -> t -> Sexp.t
+  val custom_t_of_sexp : (Sexp.t -> elt) -> Sexp.t -> t
   val init : int -> f:(int -> elt) -> t
   val iter : t -> f:(elt -> unit) -> unit
   val iteri : t -> f:(int -> elt -> unit) -> unit
@@ -740,6 +741,8 @@ end
     boxing/unboxing steps either way. *)
 module Array : sig
   include Array with type t = Float_array.t and type elt := float#
+
+  include%template Bin_prot.Binable.S with type t := t
 
   module Permissioned : sig
     type -'perms t = 'perms Float_array.Permissioned.t
@@ -787,11 +790,12 @@ module Stable : sig
     val sexp_of_t : t -> Sexp.t
     val t_of_sexp : Sexp.t -> t
 
-    include%template Bin_prot.Binable.S_any [@mode local] with type t := t
+    include%template Bin_prot.Binable.S [@mode local] with type t := t
 
     include Ppx_hash_lib.Hashable.S_any with type t := t
 
     val typerep_of_t : t Typerep.t
+    val typename_of_t : t Typerep_lib.Typename.t
     val of_string : string -> t
     val to_string : t -> string
     val equal : t -> t -> bool

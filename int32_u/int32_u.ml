@@ -3,6 +3,8 @@ module Boxed = Core.Int32
 
 type t = int32#
 
+let[@inline] globalize (local_ (t : t)) = t
+
 external of_int32 : (int32[@local_opt]) -> t @@ portable = "%unbox_int32"
 external to_int32 : t -> (int32[@local_opt]) @@ portable = "%box_int32"
 
