@@ -108,8 +108,7 @@ module Infix = struct
   let ( * ) = Float.( * )
   let ( / ) = Float.( / )
 
-  (* We need to check both operands, because:
-     Float.nan ** 0. = 1.
+  (* We need to check both operands, because: Float.nan ** 0. = 1.
      1. ** Float.nan = 1. *)
   let ( ** ) t1 t2 = if is_none t1 || is_none t2 then none else Float.( ** ) t1 t2
 
@@ -195,12 +194,12 @@ module Local = struct
 end
 
 (* Due to the arithmetic operations provided above, it's possible to get a different
-   representation of [None]. For hashing, we make sure to use a canonical [None],
-   although it is not necessary at the time, as [Float.hash] returns the same hash for
-   all representations of [NaN].
+   representation of [None]. For hashing, we make sure to use a canonical [None], although
+   it is not necessary at the time, as [Float.hash] returns the same hash for all
+   representations of [NaN].
 
-   The performance of keeping vs. removing this branching stays the same,
-   proved by benchmarking. *)
+   The performance of keeping vs. removing this branching stays the same, proved by
+   benchmarking. *)
 let none_hash = Float.hash none
 
 let hash t =
@@ -340,8 +339,7 @@ module Unboxed = struct
     let ( = ) = [%eta2 equal]
     let[@inline] [@zero_alloc] ( <> ) t1 t2 = not (equal t1 t2)
 
-    (* We need to check both operands, because:
-       Float.nan ** 0. = 1.
+    (* We need to check both operands, because: Float.nan ** 0. = 1.
        1. ** Float.nan = 1. *)
     let[@zero_alloc] ( ** ) t1 t2 =
       if Bool.Non_short_circuiting.(is_none t1 || is_none t2) then none () else t1 ** t2
@@ -462,8 +460,7 @@ module Unboxed = struct
     include Float_u.Array
 
     (* It's OK that [sexp_of_t] here differs from the [sexp_of_t] in [Float_u.Array],
-       because the equality between these types is not exposed by this module's
-       interface. *)
+       because the equality between these types is not exposed by this module's interface. *)
     let sexp_of_t t = custom_sexp_of_t sexp_of_t' t
     let t_of_sexp sexp = custom_t_of_sexp t_of_sexp' sexp
   end

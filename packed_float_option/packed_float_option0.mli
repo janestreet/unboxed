@@ -32,7 +32,7 @@ module Array : sig
     Float_array.Permissioned with type permissionless := t and type float_elt := elt
 
   (** Like [of_float_nan_as_none], except it reinterprets the array. Note that this is a
-      view into the array, and no copy is created. **)
+      view into the array, and no copy is created. *)
   val view_of_float_array_nan_as_none : Float_array.t -> t
 
   (** Like [to_float_none_as_nan], except it reinterprets the array. Note that this is a
@@ -76,39 +76,33 @@ val exp : t -> t
     [false]: otherwise, including when operand is [none] *)
 val is_inf : t -> bool
 
-(* Returns:
-   [true]: if operand is [some val], such that [Float.is_positive val]
-   [false]:  otherwise, including when operand is [none]
+(* Returns: [true]: if operand is [some val], such that [Float.is_positive val] [false]:
+   otherwise, including when operand is [none]
 *)
 val is_positive : t -> bool
 
-(* Returns:
-   [true]: if operand is [some val], such that [Float.is_non_positive val]
+(* Returns: [true]: if operand is [some val], such that [Float.is_non_positive val]
    [false]: otherwise, including when operand is [none]
 *)
 val is_non_positive : t -> bool
 
-(* Returns:
-   [true]: if operand is [some val], such that [Float.is_negative val]
-   [false]:  otherwise, including when operand is [none]
+(* Returns: [true]: if operand is [some val], such that [Float.is_negative val] [false]:
+   otherwise, including when operand is [none]
 *)
 val is_negative : t -> bool
 
-(* Returns:
-   [true]: if operand is [some val], such that [Float.is_non_negative val]
+(* Returns: [true]: if operand is [some val], such that [Float.is_non_negative val]
    [false]: otherwise, including when operand is [none]
 *)
 val is_non_negative : t -> bool
 
-(* Returns:
-   [true]: if operand is [some val], such that [Float.is_integer val]
-   [false]:  otherwise, including when operand is [none]
+(* Returns: [true]: if operand is [some val], such that [Float.is_integer val] [false]:
+   otherwise, including when operand is [none]
 *)
 val is_integer : t -> bool
 
-(* Returns:
-   [true]: if operand is [some val], such that [Float.is_finite val]
-   [false]: otherwise, including when operand is [none]
+(* Returns: [true]: if operand is [some val], such that [Float.is_finite val] [false]:
+   otherwise, including when operand is [none]
 *)
 val is_finite : t -> bool
 

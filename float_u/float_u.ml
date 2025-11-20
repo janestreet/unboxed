@@ -16,7 +16,7 @@ external to_float : float# -> (float[@local_opt]) @@ portable = "%box_float"
 
    Most functions in this file are implemented by boxing the float, calling the equivalent
    function on boxed floats, and then unboxing the result. This may seem surprising: isn't
-   the point of unboxed types to avoid boxes?  But it's fine; the compiler's middle-end
+   the point of unboxed types to avoid boxes? But it's fine; the compiler's middle-end
    will reliably eliminate these boxing and unboxing steps, and the testsuite checks there
    are no allocations here. If you add new functions, you should add similar tests.
 
@@ -615,9 +615,8 @@ module Option = struct
   let typerep_of_t = typerep_of_t
   let typename_of_t = typename_of_t
 
-  (* The magic value for [none] is a signaling nan, which will cause many floating
-     point operations to fail. In particular, comparisons should fail rather than
-     return false. *)
+  (* The magic value for [none] is a signaling nan, which will cause many floating point
+     operations to fail. In particular, comparisons should fail rather than return false. *)
   let none () : t = of_bits (#0x7ff0_1234_5678_90ABL : int64#)
   let%test_unit "none is nan" = [%test_eq: Base.Bool.t] (is_nan (none ())) true
 
@@ -627,16 +626,16 @@ module Option = struct
       let sign_mask : int64# = sign_mask () in
       (* Flatten all nan values to either [nan] or [-nan]. The purpose is to prevent
          calling [some] on the magic value for [none] from accidentally returning [none],
-         while preserving the sign of nan. Note that this maps all signalling nans
-         into a quiet nan -- we're preserving this behavior for consistency with
+         while preserving the sign of nan. Note that this maps all signalling nans into a
+         quiet nan -- we're preserving this behavior for consistency with
          [Float63.Option]. *)
       if Int64_u.(to_bits x land sign_mask = #0L) then nan () else neg (nan ()))
     else x
   ;;
 
   let is_none t =
-    (* We need to be careful here - the compiler is clever enough to see that [none ()]
-       is nan and will try to optimize comparisons away *)
+    (* We need to be careful here - the compiler is clever enough to see that [none ()] is
+       nan and will try to optimize comparisons away *)
     Int64_u.equal (to_bits t) (to_bits (none ()))
   ;;
 

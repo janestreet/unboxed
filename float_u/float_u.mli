@@ -623,8 +623,7 @@ val exp : t -> t
 (** Natural logarithm. *)
 val log : t -> t
 
-(** {2 Classification and representation}
-    **)
+(** {2 Classification and representation} *)
 
 (** Excluding nan the floating-point "number line" looks like:
     {v
@@ -642,7 +641,7 @@ module Class = Base.Float.Class
 val classify : t -> Class.t
 
 (*_ Caution: If we remove this sig item, [sign] will still be present from
-  [Comparable.With_zero]. *)
+    [Comparable.With_zero]. *)
 
 val sign : t -> Sign.t
 [@@deprecated "[since 2016-01] Replace [sign] with [robust_sign] or [sign_exn]"]
