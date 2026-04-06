@@ -1,6 +1,16 @@
 module F64 = struct
   include Float_u
-  module Option = Packed_float_option.Unboxed
+
+  module Option = struct
+    include Option
+
+    let%template[@mode m = (global, local)] [@zero_alloc_if_local m] box t =
+      (Packed_float_option.Unboxed.box [@mode m])
+        t [@exclave_if_local m ~reasons:[ May_return_local ]]
+    ;;
+
+    let[@inline] [@zero_alloc] unbox (t @ local) = Packed_float_option.Unboxed.unbox t
+  end
 
   let to_f32 = to_float32_u
   let of_f32 = of_float32_u
