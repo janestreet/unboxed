@@ -23,7 +23,7 @@ depends: [
   "typerep"
   "dune"                    {>= "3.17.0"}
 ]
-available: arch != "arm32" & arch != "x86_32"
+available: arch != "x86_32"
 synopsis: "Unboxed types for OxCaml"
 description: "
  A library for unboxed number types.

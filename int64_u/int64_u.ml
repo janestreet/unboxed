@@ -313,6 +313,22 @@ module Array_index = struct
   [@@layout_poly]
 end
 
+module Iarray_index = struct
+  external get
+    : ('a : any mod separable).
+    ('a iarray[@local_opt]) -> (t[@local_opt]) -> 'a
+    @@ portable
+    = "%array_safe_get_indexed_by_int64#"
+  [@@layout_poly]
+
+  external unsafe_get
+    : ('a : any mod separable).
+    ('a iarray[@local_opt]) -> (t[@local_opt]) -> 'a
+    @@ portable
+    = "%array_unsafe_get_indexed_by_int64#"
+  [@@layout_poly]
+end
+
 module Array = struct
   type ('a : bits64) t = 'a array
 
@@ -394,7 +410,10 @@ module Array = struct
   let copy t = init (length t) ~f:(fun i -> unsafe_get t i) [@nontail]
 end
 
-let to_string n = Base.Exported_for_specific_uses.Integer_to_string.int64_u_to_string n
+let%template[@alloc a = (heap, stack)] to_string n =
+  (Base.Exported_for_specific_uses.Integer_to_string.int64_u_to_string [@alloc a])
+    n [@exclave_if_stack a]
+;;
 
 module Stable = struct
   module V1 = struct

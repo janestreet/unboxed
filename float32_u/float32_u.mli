@@ -369,7 +369,7 @@ end
 val to_string : t -> string
 
 (** [of_string] is inverse to [to_string]. *)
-val of_string : string -> t
+val of_string : string @ local -> t
 
 (** Pretty print float32, for example [to_string_hum ~decimals:3 1234.1999s = "1_234.200"]
     [to_string_hum ~decimals:3 ~strip_zero:true 1234.1999s = "1_234.2" ]. No delimiters
@@ -697,7 +697,7 @@ module (Bigarray @@ nonportable) : sig
         [x]. [x] must be greater or equal than [0] and strictly less than [Array1.dim a]
         if [a] has C layout. If [a] has Fortran layout, [x] must be greater or equal than
         [1] and less or equal than [Array1.dim a]. Otherwise, [Invalid_argument] is
-        raised. *)
+            raised. *)
     val get : ('a, float32_elt, 'c) Array1.t -> int -> float32#
 
     (** [Array1.set a x v], also written [a.{x} <- v], stores the value [v] at index [x]

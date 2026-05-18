@@ -57,8 +57,9 @@ val typerep_of_t : t Typerep_lib.Std.Typerep.t
 
 (** {3 Inlined from [Stringable]} *)
 
-val of_string : string -> t
-val to_string : t -> string
+val of_string : string @ local -> t
+
+val%template to_string : t -> string @ l [@@alloc a @ l = (heap @ global, stack @ local)]
 
 [%%template:
 [@@@mode.default m = (global, local)]
@@ -425,6 +426,20 @@ module Array_index : sig
     : ('a : any mod separable).
     ('a array[@local_opt]) -> (t[@local_opt]) -> 'a -> unit
     = "%array_unsafe_set_indexed_by_int64#"
+  [@@layout_poly]
+end
+
+module Iarray_index : sig
+  external get
+    : ('a : any mod separable).
+    ('a iarray[@local_opt]) -> (t[@local_opt]) -> 'a
+    = "%array_safe_get_indexed_by_int64#"
+  [@@layout_poly]
+
+  external unsafe_get
+    : ('a : any mod separable).
+    ('a iarray[@local_opt]) -> (t[@local_opt]) -> 'a
+    = "%array_unsafe_get_indexed_by_int64#"
   [@@layout_poly]
 end
 

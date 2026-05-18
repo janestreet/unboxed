@@ -20,9 +20,16 @@ module Boxed = Float
 external to_float : float# -> (float[@local_opt]) = "%box_float"
 external of_float : (float[@local_opt]) -> float# = "%unbox_float"
 
-(** [max] and [min] will return nan if either argument is nan.
+(** {2 Validation}
 
-    The [validate_*] functions always fail if class is [Nan] or [Infinite]. *)
+    [validate_lbound], [validate_ubound], and [validate_bound] always fail if class is
+    [Nan] or [Infinite]. The other validation functions still fail on [Nan], but permit
+    [Infinite] values of the correct sign. *)
+
+include Comparable.Validate_with_zero [@kind float64] with type t := t
+
+(** [validate_ordinary] fails if class is [Nan] or [Infinite]. *)
+val validate_ordinary : t Validate.check
 
 (** {2 Inlined from [Identifiable], which comprises [Sexpable], [Stringable],
     [Comparable], and [Pretty_printer]} *)
@@ -59,6 +66,8 @@ val equal : t @ m -> t @ m -> bool [@@zero_alloc]
     than [t2], and a positive integer if [t1] is greater than [t2]. *)
 val compare : t @ m -> t @ m -> int
 [@@zero_alloc]]
+
+(** [max] and [min] will return nan if either argument is nan. *)
 
 val min : t -> t -> t [@@zero_alloc]
 val max : t -> t -> t [@@zero_alloc]
@@ -158,7 +167,7 @@ val one_ulp : [ `Up | `Down ] -> t -> t
 val to_int : t -> int [@@zero_alloc]
 val to_int_unchecked : t -> int [@@zero_alloc]
 val truncate : t -> int
-val of_int63 : Int63.t -> t
+val of_int63 : Int63.t -> t [@@zero_alloc]
 val of_int64 : int64 -> t
 val to_int64 : t -> int64
 
@@ -232,7 +241,7 @@ val iround_up_exn : t -> int [@@zero_alloc]
 val iround_nearest_exn : t -> int [@@zero_alloc]
 val int63_round_down_exn : t -> Int63.t
 val int63_round_up_exn : t -> Int63.t
-val int63_round_nearest_exn : t -> Int63.t
+val int63_round_nearest_exn : t -> Int63.t [@@zero_alloc]
 val iround_lbound : t
 val iround_ubound : t
 val int63_round_lbound : t
@@ -328,6 +337,14 @@ val is_finite : t -> bool
 (** [is_integer x] is [true] if and only if [x] is an integer. *)
 val is_integer : t -> bool
 [@@zero_alloc]
+
+(** [is_positive], [is_non_negative], [is_negative], and [is_non_positive] return [false]
+    if [t] is [nan]. *)
+
+val is_positive : t @ local -> bool [@@zero_alloc]
+val is_non_negative : t @ local -> bool [@@zero_alloc]
+val is_negative : t @ local -> bool [@@zero_alloc]
+val is_non_positive : t @ local -> bool [@@zero_alloc]
 
 (** {2 Arithmetic} *)
 
@@ -428,7 +445,7 @@ end
 val to_string : t -> string
 
 (** [of_string] is inverse to [to_string]. *)
-val of_string : string -> t
+val of_string : string @ local -> t
 
 (** Pretty print float, for example [to_string_hum ~decimals:3 1234.1999 = "1_234.200"]
     [to_string_hum ~decimals:3 ~strip_zero:true 1234.1999 = "1_234.2" ]. No delimiters are
@@ -823,6 +840,12 @@ module Option : sig
   val of_option : float option @ m -> t [@@zero_alloc]
   val to_option : t -> float option @ m]
 
+  val%template of_or_null : float or_null @ m -> t
+  [@@mode m = (global, local)] [@@zero_alloc]
+
+  val%template to_or_null : t -> float or_null @ m
+  [@@alloc a @ m = (heap @ global, stack @ local)] [@@zero_alloc_if_stack a]
+
   val select : bool -> t -> t -> t [@@zero_alloc]
   val some_if : bool -> float# -> t [@@zero_alloc]
 
@@ -849,6 +872,10 @@ module Option : sig
   val value : t -> default:float# -> float# [@@zero_alloc]
   val value_exn : t -> float# [@@zero_alloc]
   val compare : t -> t -> int [@@zero_alloc]
+
+  (** [clamp_exn t ~min ~max] clamps [t] to the range [[min, max]]. A [none] bound does
+      not clamp on that side. Returns [none] if [t] is [none]. *)
+  val clamp_exn : t -> min:t -> max:t -> t
 
   (** Returns [false] if [t] is [none] *)
 

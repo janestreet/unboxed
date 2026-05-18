@@ -579,7 +579,7 @@ module Terse : sig
 
   [@@@end]
 
-  include Stringable.S_local_input with type t := t
+  include Stringable.S [@mode local] with type t := t
 end
 
 (**/**)
@@ -664,7 +664,7 @@ module Bigarray : sig
         [x]. [x] must be greater or equal than [0] and strictly less than [Array1.dim a]
         if [a] has C layout. If [a] has Fortran layout, [x] must be greater or equal than
         [1] and less or equal than [Array1.dim a]. Otherwise, [Invalid_argument] is
-        raised. *)
+            raised. *)
     external get
       :  ('a, float32_elt, 'c) Array1.t
       -> int
@@ -799,5 +799,7 @@ module Stable : sig
       , sexp ~stackify
       , stable_witness
       , string]
+
+    include Stringable.S [@mode local] with type t := t
   end
 end

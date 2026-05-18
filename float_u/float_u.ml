@@ -124,7 +124,7 @@ let[@inline] [@zero_alloc] to_int_unchecked t : int =
 ;;
 
 let[@inline] truncate t : int = Stdlib.truncate (to_float t)
-let[@inline] of_int63 i : t = of_float ((F.of_int63 [@inlined hint]) i)
+let[@inline] of_int63 i : t = of_float ((F.of_int63 [@inlined hint]) i) [@@zero_alloc]
 let[@inline] of_int64 i : t = of_float ((F.of_int64 [@inlined hint]) i)
 let[@inline] to_int64 t : int64 = (F.to_int64 [@inlined hint]) (to_float t)
 
@@ -217,6 +217,7 @@ let[@inline] int63_round_up_exn t : Base.Int63.t =
 
 let[@inline] int63_round_nearest_exn t : Base.Int63.t =
   (F.int63_round_nearest_exn [@inlined hint]) (to_float t)
+[@@zero_alloc]
 ;;
 
 let iround_lbound = of_float F.iround_lbound
@@ -238,6 +239,22 @@ let[@inline] [@zero_alloc] is_finite t : bool = (F.is_finite [@inlined hint]) (t
 
 let[@inline] [@zero_alloc] is_integer t : bool =
   (F.is_integer [@inlined hint]) (to_float t)
+;;
+
+let[@inline] [@zero_alloc] is_positive t : bool =
+  (F.is_positive [@inlined hint]) (to_float t)
+;;
+
+let[@inline] [@zero_alloc] is_non_negative t : bool =
+  (F.is_non_negative [@inlined hint]) (to_float t)
+;;
+
+let[@inline] [@zero_alloc] is_negative t : bool =
+  (F.is_negative [@inlined hint]) (to_float t)
+;;
+
+let[@inline] [@zero_alloc] is_non_positive t : bool =
+  (F.is_non_positive [@inlined hint]) (to_float t)
 ;;
 
 let%template[@inline] [@zero_alloc] min_inan t1 t2 : t =
@@ -424,6 +441,93 @@ let[@inline] ieee_exponent t : int = (F.ieee_exponent [@inlined hint]) (to_float
 
 let[@inline] ieee_mantissa t : Base.Int63.t =
   (F.ieee_mantissa [@inlined hint]) (to_float t)
+;;
+
+let validate_ordinary t =
+  Core.Validate.of_error_opt
+    (match classify t with
+     | Normal | Subnormal | Zero -> None
+     | Infinite -> Some "value is infinite"
+     | Nan -> Some "value is NaN")
+;;
+
+let validate_not_nan t =
+  Core.Validate.of_error_opt
+    (match classify t with
+     | Normal | Subnormal | Zero | Infinite -> None
+     | Nan -> Some "value is NaN")
+;;
+
+let validate_bounded
+  ~(lower : (t Base.Maybe_bound.t[@kind float64]))
+  ~(upper : (t Base.Maybe_bound.t[@kind float64]))
+  t
+  =
+  if not ((Base.Maybe_bound.is_lower_bound [@kind float64]) lower ~of_:t ~compare)
+  then (
+    match lower with
+    | Unbounded -> assert false
+    | Incl incl ->
+      Core.Validate.fail [%string "value %{to_string t} < bound %{to_string incl}"]
+    | Excl excl ->
+      Core.Validate.fail [%string "value %{to_string t} <= bound %{to_string excl}"])
+  else if not ((Base.Maybe_bound.is_upper_bound [@kind float64]) upper ~of_:t ~compare)
+  then (
+    match upper with
+    | Unbounded -> assert false
+    | Incl incl ->
+      Core.Validate.fail [%string "value %{to_string t} > bound %{to_string incl}"]
+    | Excl excl ->
+      Core.Validate.fail [%string "value %{to_string t} >= bound %{to_string excl}"])
+  else Core.Validate.pass
+;;
+
+let validate_bound ~min ~max t =
+  Core.Validate.first_failure
+    (validate_ordinary t)
+    (validate_bounded ~lower:min ~upper:max t)
+;;
+
+let validate_lbound ~min t =
+  validate_bound
+    ~min
+    ~max:(Base.Maybe_bound.Unbounded : (t Base.Maybe_bound.t[@kind float64]))
+    t
+;;
+
+let validate_ubound ~max t =
+  validate_bound
+    ~min:(Base.Maybe_bound.Unbounded : (t Base.Maybe_bound.t[@kind float64]))
+    ~max
+    t
+;;
+
+let excl_zero : (float# Base.Maybe_bound.t[@kind float64]) = Base.Maybe_bound.Excl #0.
+let incl_zero : (float# Base.Maybe_bound.t[@kind float64]) = Base.Maybe_bound.Incl #0.
+let unbounded : (t Base.Maybe_bound.t[@kind float64]) = Base.Maybe_bound.Unbounded
+
+let validate_positive t =
+  Core.Validate.first_failure
+    (validate_not_nan t)
+    (validate_bounded ~lower:excl_zero ~upper:unbounded t)
+;;
+
+let validate_non_negative t =
+  Core.Validate.first_failure
+    (validate_not_nan t)
+    (validate_bounded ~lower:incl_zero ~upper:unbounded t)
+;;
+
+let validate_negative t =
+  Core.Validate.first_failure
+    (validate_not_nan t)
+    (validate_bounded ~lower:unbounded ~upper:excl_zero t)
+;;
+
+let validate_non_positive t =
+  Core.Validate.first_failure
+    (validate_not_nan t)
+    (validate_bounded ~lower:unbounded ~upper:incl_zero t)
 ;;
 
 external box_int64 : int64# -> (int64[@local_opt]) @@ portable = "%box_int64"
@@ -669,6 +773,20 @@ module Option = struct
         =
         [%compare.equal: value] t1 t2
       ;;
+
+      let clamp_exn =
+        let float_u_min = min in
+        let float_u_max = max in
+        let float_u_clamp_exn = clamp_exn in
+        fun t ~min ~max ->
+          let has_min = not (is_nan min) in
+          let has_max = not (is_nan max) in
+          match has_min, has_max with
+          | false, false -> t
+          | true, false -> float_u_max t min
+          | false, true -> float_u_min t max
+          | true, true -> float_u_clamp_exn t ~min ~max
+      ;;
     end
   end
 
@@ -695,6 +813,12 @@ module Option = struct
     match opt with
     | None -> none
     | Some x -> some (unbox x)
+  ;;
+
+  let%template[@mode m = (global, local)] [@zero_alloc] of_or_null (opt @ local) =
+    match opt with
+    | Null -> none
+    | This x -> some (unbox x)
   ;;
 
   let[@inline] [@zero_alloc] first_some x y = first_non_nan x y
@@ -758,6 +882,12 @@ module Option = struct
     | Some f ->
       let f = box f in
       Some f [@exclave_if_local m]
+  ;;
+
+  let%template[@alloc a = (heap, stack)] to_or_null t =
+    match%optional_u (t : t) with
+    | None -> Null
+    | Some f -> This (box f) [@exclave_if_stack a]
   ;;
 
   module Stable = struct

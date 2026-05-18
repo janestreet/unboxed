@@ -57,8 +57,9 @@ val typerep_of_t : t Typerep_lib.Std.Typerep.t
 
 (** {3 Inlined from [Stringable]} *)
 
-val of_string : string -> t
-val to_string : t -> string
+val of_string : string @ local -> t
+
+val%template to_string : t -> string @ l [@@alloc a @ l = (heap @ global, stack @ local)]
 
 (** {3 Inlined from [Comparable]} *)
 

@@ -71,11 +71,14 @@ val to_bp_int : t -> int [@@zero_alloc]
 
 (** Misc *)
 
-val zero : unit -> t [@@zero_alloc]
-val one_hundred_percent : unit -> t [@@zero_alloc]
+val zero : t
+val one_hundred_percent : t
 val apply : t -> Float_u.t -> Float_u.t [@@zero_alloc]
 val scale : t -> Float_u.t -> t [@@zero_alloc]
 val select : bool -> t -> t -> t [@@zero_alloc]
+
+(** 0.0123456% ~significant_digits:4 is 1.235bp *)
+val round_significant : t -> significant_digits:int -> t
 
 module Option : sig
   type value := t
@@ -91,7 +94,7 @@ module Option : sig
   include Ppx_hash_lib.Hashable.S with type t := t
 
   val typerep_of_t : t Typerep.t
-  val none : unit -> t [@@zero_alloc]
+  val none : t
   val is_none : t -> bool [@@zero_alloc]
   val is_some : t -> bool [@@zero_alloc]
   val some : value -> t [@@zero_alloc]
@@ -147,14 +150,14 @@ end
 
 module Stable : sig
   module V1 : sig
-    type nonrec t = t [@@deriving sexp ~stackify]
+    type nonrec t = t [@@deriving compare, globalize, sexp ~stackify]
 
     include%template Bin_prot.Binable.S [@mode local] with type t := t
   end
 
   module Option : sig
     module V1 : sig
-      type nonrec t = Option.t [@@deriving sexp ~stackify]
+      type nonrec t = Option.t [@@deriving compare, globalize, sexp ~stackify]
 
       include%template Bin_prot.Binable.S [@mode local] with type t := t
     end

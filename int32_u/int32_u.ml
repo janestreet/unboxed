@@ -64,7 +64,10 @@ module Shared_derived = struct
   let[@inline] hash t = (I.hash [@inlined hint]) (to_int32 t)
   let typerep_of_t = Typerep_lib.Std.Typerep.Int32_u
   let[@inline] of_string x = of_int32 ((I.of_string [@inlined hint]) x)
-  let[@inline] to_string t = (I.to_string [@inlined hint]) (to_int32 t)
+
+  let%template[@alloc a = (heap, stack)] [@inline] to_string t =
+    (I.to_string [@alloc a] [@inlined hint]) (to_int32 t) [@exclave_if_stack a]
+  ;;
 
   let%template[@mode m = (global, local)] [@inline] [@zero_alloc] equal t1 t2 : bool =
     (I.equal [@mode m]) (to_int32 t1) (to_int32 t2)

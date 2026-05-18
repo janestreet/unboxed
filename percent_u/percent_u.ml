@@ -42,8 +42,8 @@ let[@zero_alloc] to_bp t = t * #10_000.
 let[@zero_alloc] of_bp_int i = of_bp (Float_u.of_int i)
 let[@zero_alloc] of_bp_int_approx i = of_bp_approx (Float_u.of_int i)
 let[@zero_alloc] to_bp_int t = Float_u.to_int (to_bp t)
-let[@zero_alloc] zero () = #0.
-let[@zero_alloc] one_hundred_percent () = #1.
+let zero = #0.
+let one_hundred_percent = #1.
 let[@zero_alloc] apply x y = x * y
 let[@zero_alloc] scale x y = x * y
 
@@ -63,7 +63,7 @@ module Option = struct
   include O
 
   let box = box'
-  let none () = none
+  let none = none
   let[@zero_alloc] unbox (local_ t) = unbox' t
   let[@zero_alloc] of_mult f = f
   let[@zero_alloc] to_mult t = t

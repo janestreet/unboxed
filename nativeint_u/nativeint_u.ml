@@ -70,7 +70,10 @@ module Shared_derived = struct
   let[@inline] hash t = (I.hash [@inlined hint]) (to_nativeint t)
   let typerep_of_t = Typerep_lib.Std.Typerep.Nativeint_u
   let[@inline] of_string x = of_nativeint ((I.of_string [@inlined hint]) x)
-  let[@inline] to_string t = (I.to_string [@inlined hint]) (to_nativeint t)
+
+  let%template[@alloc a = (heap, stack)] [@inline] to_string t =
+    (I.to_string [@alloc a] [@inlined hint]) (to_nativeint t) [@exclave_if_stack a]
+  ;;
 
   let%template[@mode m = (global, local)] [@inline] [@zero_alloc] equal t1 t2 : bool =
     (I.equal [@mode m]) (to_nativeint t1) (to_nativeint t2)
