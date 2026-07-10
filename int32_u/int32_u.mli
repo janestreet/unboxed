@@ -461,25 +461,15 @@ module Hex_unsigned : sig
   include Ppx_hash_lib.Hashable.S with type t := t
 
   val compare : t -> t -> int
-  val sexp_of_t : t -> Sexp.t
   val t_of_sexp : Sexp.t @ local -> t [@@zero_alloc]
-  val to_string : t -> string
-  val to_string_custom : t -> config:To_string_config.t# -> string
   val of_string : string @ local -> t [@@zero_alloc]
 
-  module Local : sig
-    type nonrec t = t
+  [%%template:
+  [@@@alloc.default a @ l = (heap_global, stack_local)]
 
-    include Ppx_hash_lib.Hashable.S with type t := t
+  val sexp_of_t : t @ l -> Sexp.t @ l unique [@@zero_alloc_if_stack a]
+  val to_string : t @ l -> string @ l unique [@@zero_alloc_if_stack a]
 
-    val compare : t -> t -> int
-    val sexp_of_t : t -> Sexp.t @ local [@@zero_alloc]
-    val t_of_sexp : Sexp.t @ local -> t [@@zero_alloc]
-    val to_string : t -> string @ local [@@zero_alloc]
-
-    val to_string_custom : t -> config:To_string_config.t# -> string @ local
-    [@@zero_alloc]
-
-    val of_string : string @ local -> t [@@zero_alloc]
-  end
+  val to_string_custom : t @ l -> config:To_string_config.t# -> string @ l unique
+  [@@zero_alloc_if_stack a]]
 end

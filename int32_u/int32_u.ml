@@ -380,65 +380,48 @@ module Hex_unsigned = struct
 
   let max_digits = #8L
 
-  module Local = struct
-    type nonrec t = t
-
-    let compare = Shared_derived.compare
-    let hash = Shared_derived.hash
-    let hash_fold_t = Shared_derived.hash_fold_t
-
-    let[@inline] of_string s =
-      let i64 = Int64_u.Hex_unsigned.Private.of_string s ~max_digits in
-      let i32 = Int64_u.(select (i64 >= #0x8000_0000L) (i64 - #0x1_0000_0000L) i64) in
-      of_int64_u_exn i32
-    ;;
-
-    let[@inline] t_of_sexp (sexp : Sexp.t @ local) =
-      match sexp with
-      | Atom s -> of_string s
-      | List _ ->
-        (match Private.t_of_sexp_failed sexp with
-         | (_ : Nothing.t) -> .)
-    ;;
-
-    let[@inline never] to_string_custom t ~config = exclave_
-      let t = to_int64_u t in
-      let digits_to_process = Private.digits_to_process t ~max_digits in
-      let bytes =
-        Bytes.create_local (Private.to_string_required_length ~config ~digits_to_process)
-      in
-      Private.to_string_into t bytes ~config ~digits_to_process;
-      Bytes.unsafe_to_string ~no_mutation_while_string_reachable:bytes
-    ;;
-
-    let[@inline] to_string t = exclave_
-      to_string_custom t ~config:To_string_config.(unbox default)
-    ;;
-
-    let[@inline] sexp_of_t t : Sexp.t = exclave_ Atom (to_string t)
-  end
-
   type nonrec t = t
 
-  let compare = Local.compare
+  let compare = Shared_derived.compare
   let hash = Shared_derived.hash
   let hash_fold_t = Shared_derived.hash_fold_t
-  let of_string = [%eta1 Local.of_string]
-  let t_of_sexp = [%eta1 Local.t_of_sexp]
+
+  let[@inline] of_string s =
+    let i64 = Int64_u.Hex_unsigned.Private.of_string s ~max_digits in
+    let i32 = Int64_u.(select (i64 >= #0x8000_0000L) (i64 - #0x1_0000_0000L) i64) in
+    of_int64_u_exn i32
+  ;;
+
+  let[@inline] t_of_sexp (sexp : Sexp.t @ local) =
+    match sexp with
+    | Atom s -> of_string s
+    | List _ ->
+      (match Private.t_of_sexp_failed sexp with
+       | (_ : Nothing.t) -> .)
+  ;;
+
+  [%%template
+  [@@@alloc.default a = (heap, stack)]
 
   let[@inline never] to_string_custom t ~config =
     let t = to_int64_u t in
     let digits_to_process = Private.digits_to_process t ~max_digits in
-    let bytes =
-      Bytes.create (Private.to_string_required_length ~config ~digits_to_process)
-    in
-    Private.to_string_into t bytes ~config ~digits_to_process;
-    Bytes.unsafe_to_string ~no_mutation_while_string_reachable:bytes [@nontail]
+    (let bytes =
+       (Bytes.create [@alloc a])
+         (Private.to_string_required_length ~config ~digits_to_process)
+     in
+     Private.to_string_into t (borrow_ bytes) ~config ~digits_to_process;
+     Bytes.unique_to_string bytes [@nontail])
+    [@exclave_if_stack a]
   ;;
 
   let[@inline] to_string t : string =
-    to_string_custom t ~config:To_string_config.(unbox default)
+    (to_string_custom [@alloc a])
+      t
+      ~config:To_string_config.(unbox default) [@exclave_if_stack a]
   ;;
 
-  let[@inline] sexp_of_t t : Sexp.t = Atom (to_string t)
+  let[@inline] sexp_of_t t : Sexp.t =
+    Atom ((to_string [@alloc a]) t) [@exclave_if_stack a]
+  ;;]
 end

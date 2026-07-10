@@ -73,7 +73,10 @@ end
 
 type f64 = F64.t [@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
 type f32 = F32.t [@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
-type i64 = I64.t [@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
+
+type i64 = I64.t
+[@@deriving sexp ~stackify, compare ~localize, equal ~localize, quickcheck]
+
 type i32 = I32.t [@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
 type iptr = Iptr.t [@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
 

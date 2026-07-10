@@ -75,6 +75,7 @@ val zero : t
 val one_hundred_percent : t
 val apply : t -> Float_u.t -> Float_u.t [@@zero_alloc]
 val scale : t -> Float_u.t -> t [@@zero_alloc]
+val neg : t -> t [@@zero_alloc]
 val select : bool -> t -> t -> t [@@zero_alloc]
 
 (** 0.0123456% ~significant_digits:4 is 1.235bp *)

@@ -477,20 +477,20 @@ module Hex_unsigned = struct
     let of_string s =
       match word_size () with
       | I64 -> of_int64_trunc (Int64_u.box (Int64_u.Hex_unsigned.Local.of_string s))
-      | I32 -> of_int32 (Int32_u.box (Int32_u.Hex_unsigned.Local.of_string s))
+      | I32 -> of_int32 (Int32_u.box (Int32_u.Hex_unsigned.of_string s))
     ;;
 
     let t_of_sexp sexp =
       match word_size () with
       | I64 -> of_int64_trunc (Int64_u.box (Int64_u.Hex_unsigned.Local.t_of_sexp sexp))
-      | I32 -> of_int32 (Int32_u.box (Int32_u.Hex_unsigned.Local.t_of_sexp sexp))
+      | I32 -> of_int32 (Int32_u.box (Int32_u.Hex_unsigned.t_of_sexp sexp))
     ;;
 
     let to_string t = exclave_
       match word_size () with
       | I64 -> Int64_u.Hex_unsigned.Local.to_string (Int64_u.unbox (to_int64 t))
       | I32 ->
-        Int32_u.Hex_unsigned.Local.to_string
+        (Int32_u.Hex_unsigned.to_string [@alloc stack])
           (Int32_u.unbox (I.to_int32_trunc (to_nativeint t)))
     ;;
 
@@ -498,7 +498,7 @@ module Hex_unsigned = struct
       match word_size () with
       | I64 -> Int64_u.Hex_unsigned.Local.sexp_of_t (Int64_u.unbox (to_int64 t))
       | I32 ->
-        Int32_u.Hex_unsigned.Local.sexp_of_t
+        (Int32_u.Hex_unsigned.sexp_of_t [@alloc stack])
           (Int32_u.unbox (I.to_int32_trunc (to_nativeint t)))
     ;;
   end
